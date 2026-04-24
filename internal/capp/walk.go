@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"capp-parse/internal/grammar"
-	gotreesitter "github.com/odvcencio/gotreesitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 func runWalk(cfg WalkConfig) (WalkSummary, error) {
@@ -32,7 +32,7 @@ func runWalk(cfg WalkConfig) (WalkSummary, error) {
 		workers = runtime.GOMAXPROCS(0)
 	}
 
-	lang, err := grammar.Language()
+	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
 		return WalkSummary{}, err
 	}
@@ -68,7 +68,11 @@ func runWalk(cfg WalkConfig) (WalkSummary, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			parser := gotreesitter.NewParser(lang)
+			parser := sitter.NewParser()
+			defer parser.Close()
+			if err := parser.SetLanguage(lang); err != nil {
+				return
+			}
 			for path := range work {
 				if stopped.Load() {
 					return
@@ -82,7 +86,7 @@ func runWalk(cfg WalkConfig) (WalkSummary, error) {
 					continue
 				}
 				t0 := time.Now()
-				tree, _ := parser.Parse(src)
+				tree := parser.Parse(src, nil)
 				elapsed := time.Since(t0)
 				root := tree.RootNode()
 				r := result{
@@ -93,11 +97,12 @@ func runWalk(cfg WalkConfig) (WalkSummary, error) {
 					nodeCount: countNodes(root),
 				}
 				if r.hasErr {
-					collectErrors(root, src, lang, &r.errors)
+					collectErrors(root, src, &r.errors)
 					if cfg.FailFast {
 						stopped.Store(true)
 					}
 				}
+				tree.Close()
 				results <- r
 			}
 		}()

@@ -2,90 +2,130 @@
  * internal/grammar/grammar.go
  * capp-parse
  *
- * Created by David Richardson on Friday, April 10, 2026.
+ * Created by David Richardson on Thursday, April 23, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
  *
  */
 
 /*
- * Package grammar loads the Cappuccino Objective-J tree-sitter grammar
- * from an embedded binary blob produced by ts2go and wires in the
- * pure-Go external scanner.
+ * Package grammar loads a tree-sitter grammar dynamic library via purego.
  *
- * # Obtaining the blob
+ * The grammar dynamic library is a first-class independently deployable
+ * artifact available for use by third-party tooling in any language.
  *
- * Run ts2go against your parser.c once:
+ * Search order:
+ *   /usr/local/lib                    (primary, idiomatic)
+ *   /opt/local/lib                    (MacPorts)
+ *   ~/Library/tree-sitter             (fallback, tree-sitter tooling)
+ *   /usr/local/lib/tree-sitter        (fallback, tree-sitter tooling)
+ *   /opt/local/lib/tree-sitter        (fallback, MacPorts tree-sitter tooling)
  *
- *	go run github.com/odvcencio/gotreesitter/cmd/ts2go \
- *	    -input  path/to/tree-sitter-objj/src/parser.c \
- *	    -out    internal/grammar/objj.bin \
- *	    -compact
+ * Library name: libtree-sitter-<lang>.dylib / libtree-sitter-<lang>.so
  *
- * The resulting file is committed to the repository and embedded here
- * via go:embed.  Re-run ts2go whenever grammar.js / parser.c changes.
- *
- * # External scanner
- *
- * The grammar requires an external scanner (scanner.c in the grammar
- * source).  That logic is ported to Go in internal/scanner and is
- * registered with the language via gotreesitter.NewLanguageWithScanner.
+ * The canonical install location is /usr/local/lib.
  */
-
-/*
-* Package grammar registers the Cappuccino Objective-J tree-sitter language
-* with the gotreesitter grammar registry.
-*
-* Registration happens in init() using the same mechanism as the built-in
-* gotreesitter grammars: Register binds the LangEntry, RegisterExternalScanner
-* binds the scanner by name. Language() retrieves the registered entry.
-*
-* # Obtaining the blob
-*
-* Run ts2go against src/parser.c (copied from tree-sitter-objj):
-*
-*	ts2go -input src/parser.c -out internal/grammar/objj.bin -compact
-*
-* Commit the resulting file. Re-run whenever grammar.js / parser.c changes.
-package grammar
-*/
 package grammar
 
 import (
-	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
+	"unsafe"
 
-	"capp-parse/internal/scanner"
-	gotreesitter "github.com/odvcencio/gotreesitter"
+	"github.com/ebitengine/purego"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-//go:embed objj.bin
-var objjBlob []byte
+const languageName = "objj"
+
+var searchPaths = []string{
+	"/usr/local/lib",
+	"/opt/local/lib",
+	filepath.Join(os.Getenv("HOME"), "Library/tree-sitter"),
+	"/usr/local/lib/tree-sitter",
+	"/opt/local/lib/tree-sitter",
+}
 
 var (
 	langOnce sync.Once
-	lang     *gotreesitter.Language
+	lang     *sitter.Language
 	langErr  error
 )
 
-// Language returns the singleton gotreesitter Language for Objective-J.
+// Language returns the singleton tree-sitter Language for Objective-J.
 // Safe for concurrent use; initialisation is performed at most once.
-func Language() (*gotreesitter.Language, error) {
+// When grammarPath is non-empty it is used directly, bypassing the search.
+// Subsequent calls ignore grammarPath — the language is initialised once.
+// The --grammar flag must therefore be resolved before any concurrent parse
+// begins; cobra command execution guarantees this in normal usage.
+func Language(grammarPath string) (*sitter.Language, error) {
 	langOnce.Do(func() {
-		l, err := gotreesitter.LoadLanguage(objjBlob)
-		if err != nil {
-			langErr = fmt.Errorf("loading objj grammar: %w", err)
+		path := grammarPath
+		if path == "" {
+			path = FindLibrary()
+		}
+		if path == "" {
+			langErr = fmt.Errorf(
+				"grammar library for %q not found\n"+
+					"searched: %v\n"+
+					"run: capp-parse install\n"+
+					"or use --grammar to specify the path explicitly",
+				languageName, searchPaths,
+			)
 			return
 		}
-		l.ExternalScanner = scanner.New()
-        // fmt.Printf("ExternalTokenCount: %d\n", l.ExternalTokenCount)
-        // fmt.Printf("ExternalScanner set: %v\n", l.ExternalScanner != nil)
-        // fmt.Printf("ExternalSymbols: %v\n", l.ExternalSymbols)
-        // fmt.Printf("ExternalLexStates: %d rows\n", len(l.ExternalLexStates))
-		lang = l
+		lang, langErr = load(path)
 	})
 	if langErr != nil {
 		return nil, langErr
 	}
 	return lang, nil
+}
+
+// FindLibrary returns the path to the grammar dynamic library, or empty
+// string if not found. Exposed for use by the install and verify commands.
+func FindLibrary() string {
+	ext := libExt()
+	candidates := []string{
+		fmt.Sprintf("libtree-sitter-%s.%s", languageName, ext),
+		fmt.Sprintf("tree-sitter-%s.%s", languageName, ext),
+	}
+	for _, base := range searchPaths {
+		for _, name := range candidates {
+			p := filepath.Join(base, name)
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
+	}
+	return ""
+}
+
+// InstallPath returns the canonical install path for the grammar library.
+func InstallPath() string {
+	return filepath.Join("/usr/local/lib",
+		fmt.Sprintf("libtree-sitter-%s.%s", languageName, libExt()))
+}
+
+func libExt() string {
+	if runtime.GOOS == "darwin" {
+		return "dylib"
+	}
+	return "so"
+}
+
+func load(path string) (*sitter.Language, error) {
+	lib, err := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+	if err != nil {
+		return nil, fmt.Errorf("dlopen %s: %w", path, err)
+	}
+	var languageFunc func() uintptr
+	purego.RegisterLibFunc(&languageFunc, lib, "tree_sitter_"+languageName)
+	ptr := languageFunc()
+	if ptr == 0 {
+		return nil, fmt.Errorf("tree_sitter_%s returned nil", languageName)
+	}
+	return sitter.NewLanguage(unsafe.Pointer(ptr)), nil //nolint:unsafeptr
 }

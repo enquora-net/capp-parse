@@ -10,12 +10,17 @@
 /*
  * Package cmd assembles the capp-parse command tree.
  * When this binary is absorbed into the toolchain, this file and version.go
- * are discarded; cmd/parse/ moves into the toolchain's own cmd/ tree.
+ * are discarded; cmd/parse/, cmd/debug/, cmd/install/, cmd/verify/, and
+ * cmd/uninstall/ move into the toolchain's own cmd/ tree.
  */
 package cmd
 
 import (
+	"capp-parse/cmd/debug"
+	"capp-parse/cmd/install"
 	"capp-parse/cmd/parse"
+	"capp-parse/cmd/uninstall"
+	"capp-parse/cmd/verify"
 
 	"github.com/spf13/cobra"
 )
@@ -29,6 +34,10 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	root.AddCommand(parse.NewParseCmd())
+	root.AddCommand(debug.NewDebugCmd())
+	root.AddCommand(install.NewInstallCmd())
+	root.AddCommand(verify.NewVerifyCmd())
+	root.AddCommand(uninstall.NewUninstallCmd())
 	root.AddCommand(newVersionCmd(version))
 
 	return root

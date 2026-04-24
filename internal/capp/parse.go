@@ -13,23 +13,25 @@ import (
 	"time"
 
 	"capp-parse/internal/grammar"
-	gotreesitter "github.com/odvcencio/gotreesitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 func runParse(cfg ParseConfig) (ParseResult, error) {
-	lang, err := grammar.Language()
+	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
 		return ParseResult{}, err
 	}
 
-	t0 := time.Now()
-	parser := gotreesitter.NewParser(lang)
-	tree, err := parser.Parse(cfg.Src)
-	elapsed := time.Since(t0)
-
-	if err != nil {
-		return ParseResult{}, fmt.Errorf("parse %s: %w", cfg.Path, err)
+	parser := sitter.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(lang); err != nil {
+		return ParseResult{}, fmt.Errorf("setting language: %w", err)
 	}
+
+	t0 := time.Now()
+	tree := parser.Parse(cfg.Src, nil)
+	elapsed := time.Since(t0)
+	defer tree.Close()
 
 	root := tree.RootNode()
 	result := ParseResult{
@@ -42,11 +44,12 @@ func runParse(cfg ParseConfig) (ParseResult, error) {
 	}
 
 	if result.HasError {
-		collectErrors(root, cfg.Src, lang, &result.Errors)
+		collectErrors(root, cfg.Src, &result.Errors)
 	}
 
-	if cfg.Sexp {
-		result.Sexp = root.SExpr(lang)
+	if cfg.Format == FormatSexp || cfg.Format == FormatDefault {
+		result.Sexp = root.ToSexp()
+		result.PrettySexp = FormatNode(root, cfg.Src, 0)
 	}
 
 	return result, nil

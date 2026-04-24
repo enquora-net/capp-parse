@@ -10,33 +10,34 @@ package capp
 
 import (
 	"fmt"
+	"strings"
 
-	gotreesitter "github.com/odvcencio/gotreesitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-func countNodes(n *gotreesitter.Node) int {
+func countNodes(n *sitter.Node) int {
 	count := 1
-	for i := 0; i < n.ChildCount(); i++ {
+	for i := range n.ChildCount() {
 		count += countNodes(n.Child(i))
 	}
 	return count
 }
 
-func collectErrors(n *gotreesitter.Node, src []byte, lang *gotreesitter.Language, errs *[]string) {
+func collectErrors(n *sitter.Node, src []byte, errs *[]string) {
 	if n.IsError() || n.IsMissing() {
-		start := n.StartPoint()
+		start := n.StartPosition()
 		*errs = append(*errs, fmt.Sprintf("line %d col %d: %s",
-			start.Row+1, start.Column+1, errorContext(n, src, lang)))
+			start.Row+1, start.Column+1, errorContext(n, src)))
 	}
-	for i := 0; i < n.ChildCount(); i++ {
-		collectErrors(n.Child(i), src, lang, errs)
+	for i := range n.ChildCount() {
+		collectErrors(n.Child(i), src, errs)
 	}
 }
 
-func errorContext(n *gotreesitter.Node, src []byte, lang *gotreesitter.Language) string {
+func errorContext(n *sitter.Node, src []byte) string {
 	start := n.StartByte()
 	end := n.EndByte()
-	srcLen := uint32(len(src))
+	srcLen := uint(len(src))
 	if end > srcLen {
 		end = srcLen
 	}
@@ -45,7 +46,66 @@ func errorContext(n *gotreesitter.Node, src []byte, lang *gotreesitter.Language)
 		snippet = snippet[:40]
 	}
 	if n.IsMissing() {
-		return fmt.Sprintf("missing %s", n.Type(lang))
+		return fmt.Sprintf("missing %s", n.Kind())
 	}
 	return fmt.Sprintf("ERROR %q", snippet)
+}
+
+// FormatNode renders a node and its descendants as an indented tree.
+// Leaf node text is shown truncated to maxTextLen characters.
+const maxTextLen = 50
+
+func FormatNode(node *sitter.Node, source []byte, indent int) string {
+	var sb strings.Builder
+	prefix := strings.Repeat("  ", indent)
+	kind := node.Kind()
+	isError := kind == "ERROR"
+
+	label := kind
+	if isError {
+		sp := node.StartPosition()
+		ep := node.EndPosition()
+		label = fmt.Sprintf("❌ ERROR [%d:%d-%d:%d]",
+			sp.Row+1, sp.Column+1, ep.Row+1, ep.Column+1)
+	}
+
+	childCount := node.ChildCount()
+
+	if childCount == 0 {
+		if !isError {
+			text := string(source[node.StartByte():node.EndByte()])
+			text = strings.ReplaceAll(text, "\n", `\n`)
+			text = strings.ReplaceAll(text, "\t", `\t`)
+			if len(text) > maxTextLen {
+				text = text[:maxTextLen-3] + "..."
+			}
+			fmt.Fprintf(&sb, "%s(%s %q)", prefix, label, text)
+		} else {
+			fmt.Fprintf(&sb, "%s(%s)", prefix, label)
+		}
+		return sb.String()
+	}
+
+	fmt.Fprintf(&sb, "%s(%s\n", prefix, label)
+	for i := range childCount {
+		child := node.Child(i)
+		fmt.Fprintf(&sb, "%s\n", FormatNode(child, source, indent+1))
+	}
+	fmt.Fprintf(&sb, "%s)", prefix)
+	return sb.String()
+}
+
+// FindFirstError performs a depth-first search for the first ERROR node.
+// Returns the node and the ancestor chain from root to its parent.
+func FindFirstError(node *sitter.Node, ancestors []*sitter.Node) (*sitter.Node, []*sitter.Node) {
+	if node.Kind() == "ERROR" {
+		return node, ancestors
+	}
+	for i := range node.ChildCount() {
+		child := node.Child(i)
+		if found, chain := FindFirstError(child, append(ancestors, node)); found != nil {
+			return found, chain
+		}
+	}
+	return nil, nil
 }

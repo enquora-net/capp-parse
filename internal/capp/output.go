@@ -24,12 +24,33 @@ func MakeEmitFn(isTTY bool) EmitFn {
 	return emitJSONResult
 }
 
-// EmitResult writes a single-file parse result to the appropriate output target.
-func EmitResult(path string, r ParseResult, isTTY bool) {
-	if isTTY {
-		emitTTYResult(path, r)
-	} else {
+// EmitResult writes a single-file parse result to stdout.
+// TTY: pretty-printed sexp or summary line.
+// Non-TTY: JSON per line for machine consumption.
+func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
+	if !isTTY {
 		emitJSONResult(path, r)
+		return
+	}
+
+	if r.HasError {
+		for _, e := range r.Errors {
+			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e)
+		}
+		return
+	}
+
+	switch f {
+	case FormatSexp, FormatDefault:
+		fmt.Println(r.PrettySexp)
+	case FormatJSON:
+		// JSON tree walk not yet implemented
+		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
+	case FormatAST:
+		// Typed IR not yet implemented
+		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
+	default:
+		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 	}
 }
 
@@ -74,14 +95,48 @@ func EmitWalkSummary(s WalkSummary) {
 	fmt.Fprintf(os.Stdout, "─────────────────────────────────────────────────\n")
 }
 
+// EmitDebugProfile writes the per-file timing summary from a debug walk.
+func EmitDebugProfile(p *DebugProfile) {
+	if p == nil {
+		return
+	}
+
+	var maxElapsed time.Duration
+	for _, e := range p.Events {
+		if e.Elapsed > maxElapsed {
+			maxElapsed = e.Elapsed
+		}
+	}
+
+	fmt.Println("\n" + divider)
+	fmt.Println("PARSE PROFILE")
+	fmt.Println(divider)
+
+	for _, e := range p.Events {
+		icon := iconOK
+		if !e.OK {
+			icon = iconErr
+		}
+		fmt.Printf("%s  %8s  %s\n", icon, e.Elapsed.Round(time.Microsecond), e.Path)
+	}
+
+	fmt.Println(divider)
+	fmt.Printf("   files: %d\n", len(p.Events))
+	fmt.Printf("   total: %s\n", p.Total.Round(time.Microsecond))
+	if len(p.Events) > 0 {
+		fmt.Printf("    mean: %s\n", (p.Total / time.Duration(len(p.Events))).Round(time.Microsecond))
+	}
+	fmt.Printf("     max: %s\n", maxElapsed.Round(time.Microsecond))
+}
+
 func emitTTYResult(path string, r ParseResult) {
 	if r.HasError {
 		for _, e := range r.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", path, e)
+			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e)
 		}
 		return
 	}
-	fmt.Fprintf(os.Stdout, "%s: OK (%d nodes)\n", path, r.NodeCount)
+	fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 }
 
 func emitJSONResult(path string, r ParseResult) {

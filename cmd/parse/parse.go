@@ -14,7 +14,6 @@
  * root command without modification. cmd/root.go and cmd/version.go are
  * discarded at that point; this package and internal/ move across unchanged.
  */
-
 package parse
 
 import (
@@ -32,7 +31,9 @@ import (
 // NewParseCmd constructs the parse command.
 func NewParseCmd() *cobra.Command {
 	var (
+		grammar string
 		mode    string
+		format  string
 		workers int
 		src     bool
 	)
@@ -50,8 +51,9 @@ func NewParseCmd() *cobra.Command {
  To parse source bytes directly from stdin:
    cat src/AppController.j | capp-parse parse --src --mode objj
 
- Output is human-readable with performance data when stdout is a terminal.
- Output is JSON per line when stdout is not a terminal.`,
+ --format applies to single-file and --src modes; ignored for directory targets.
+
+ Output is human-readable when stdout is a terminal; JSON per line otherwise.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := capp.ParseMode(mode)
@@ -59,45 +61,49 @@ func NewParseCmd() *cobra.Command {
 				return err
 			}
 
+			f, err := capp.ParseFormat(format)
+			if err != nil {
+				return err
+			}
+
 			isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 
-			// stdin source mode
 			if src {
 				if len(args) > 0 {
 					return fmt.Errorf("--src reads from stdin; no path argument expected")
 				}
-				return runStdinSource(m, isTTY)
+				return runStdinSource(grammar, m, f, isTTY)
 			}
 
-			// path argument mode
 			if len(args) == 1 {
-				return runPath(args[0], m, workers, isTTY)
+				return runPath(args[0], grammar, m, f, workers, isTTY)
 			}
 
-			// stdin path-stream mode
 			if !term.IsTerminal(int(os.Stdin.Fd())) {
-				return runStdinPaths(m, workers, isTTY)
+				return runStdinPaths(grammar, m, workers, isTTY)
 			}
 
 			return cmd.Usage()
 		},
 	}
 
+	cmd.Flags().StringVarP(&grammar, "grammar", "g", "", "explicit path to grammar dylib, overrides search")
 	cmd.Flags().StringVar(&mode, "mode", "auto", "language filter: auto | objj | js | both")
+	cmd.Flags().StringVarP(&format, "format", "f", "", "output format for single-file mode: sexp | json | ast (default: sexp)")
 	cmd.Flags().IntVar(&workers, "workers", 0, "parallel workers for tree and path-stream modes (0 = GOMAXPROCS)")
 	cmd.Flags().BoolVar(&src, "src", false, "read source bytes from stdin rather than file paths")
 
 	return cmd
 }
 
-func runPath(path string, m capp.Mode, workers int, isTTY bool) error {
+func runPath(path, grammar string, m capp.Mode, f capp.Format, workers int, isTTY bool) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("accessing %s: %w", path, err)
 	}
 
 	if info.IsDir() {
-		return runTree(path, m, workers, isTTY)
+		return runTree(path, grammar, m, workers, isTTY)
 	}
 
 	src, err := os.ReadFile(path)
@@ -106,30 +112,33 @@ func runPath(path string, m capp.Mode, workers int, isTTY bool) error {
 	}
 
 	result, err := capp.Parse(capp.ParseConfig{
-		Path: path,
-		Src:  src,
-		Mode: m,
+		Path:        path,
+		Src:         src,
+		Mode:        m,
+		Format:      f,
+		GrammarPath: grammar,
 	})
 	if err != nil {
 		return err
 	}
 
-	capp.EmitResult(path, result, isTTY)
+	capp.EmitResult(path, result, f, isTTY)
 	if result.HasError {
 		os.Exit(2)
 	}
 	return nil
 }
 
-func runTree(root string, m capp.Mode, workers int, isTTY bool) error {
+func runTree(root, grammar string, m capp.Mode, workers int, isTTY bool) error {
 	summary, err := capp.Walk(capp.WalkConfig{
-		Root:      root,
-		Mode:      m,
-		Workers:   workers,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
-		Benchmark: isTTY,
-		EmitFn:    capp.MakeEmitFn(isTTY),
+		Root:        root,
+		Mode:        m,
+		GrammarPath: grammar,
+		Workers:     workers,
+		Stdout:      os.Stdout,
+		Stderr:      os.Stderr,
+		Benchmark:   isTTY,
+		EmitFn:      capp.MakeEmitFn(isTTY),
 	})
 	if err != nil {
 		return err
@@ -145,7 +154,7 @@ func runTree(root string, m capp.Mode, workers int, isTTY bool) error {
 	return nil
 }
 
-func runStdinPaths(m capp.Mode, workers int, isTTY bool) error {
+func runStdinPaths(grammar string, m capp.Mode, workers int, isTTY bool) error {
 	var paths []string
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
@@ -158,13 +167,14 @@ func runStdinPaths(m capp.Mode, workers int, isTTY bool) error {
 	}
 
 	summary, err := capp.Walk(capp.WalkConfig{
-		Paths:     paths,
-		Mode:      m,
-		Workers:   workers,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
-		Benchmark: isTTY,
-		EmitFn:    capp.MakeEmitFn(isTTY),
+		Paths:       paths,
+		Mode:        m,
+		GrammarPath: grammar,
+		Workers:     workers,
+		Stdout:      os.Stdout,
+		Stderr:      os.Stderr,
+		Benchmark:   isTTY,
+		EmitFn:      capp.MakeEmitFn(isTTY),
 	})
 	if err != nil {
 		return err
@@ -180,22 +190,24 @@ func runStdinPaths(m capp.Mode, workers int, isTTY bool) error {
 	return nil
 }
 
-func runStdinSource(m capp.Mode, isTTY bool) error {
+func runStdinSource(grammar string, m capp.Mode, f capp.Format, isTTY bool) error {
 	src, err := os.ReadFile("/dev/stdin")
 	if err != nil {
 		return fmt.Errorf("reading stdin: %w", err)
 	}
 
 	result, err := capp.Parse(capp.ParseConfig{
-		Path: "<stdin>",
-		Src:  src,
-		Mode: m,
+		Path:        "<stdin>",
+		Src:         src,
+		Mode:        m,
+		Format:      f,
+		GrammarPath: grammar,
 	})
 	if err != nil {
 		return err
 	}
 
-	capp.EmitResult("<stdin>", result, isTTY)
+	capp.EmitResult("<stdin>", result, f, isTTY)
 	if result.HasError {
 		os.Exit(2)
 	}
