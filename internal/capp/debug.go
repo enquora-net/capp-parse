@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"capp-parse/internal/grammar"
+	"dev.cappuccino/capp-parse/internal/grammar"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 

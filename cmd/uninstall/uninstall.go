@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"capp-parse/internal/grammar"
+	"dev.cappuccino/capp-parse/internal/grammar"
 
 	"github.com/spf13/cobra"
 )

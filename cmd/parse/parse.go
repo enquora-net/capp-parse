@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	"capp-parse/internal/capp"
+	"dev.cappuccino/capp-parse/internal/capp"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"

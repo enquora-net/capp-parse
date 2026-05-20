@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"capp-parse/internal/grammar"
+	"dev.cappuccino/capp-parse/internal/grammar"
 
 	"github.com/spf13/cobra"
 )

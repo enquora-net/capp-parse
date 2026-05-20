@@ -1,4 +1,4 @@
-module capp-parse
+module dev.cappuccino/capp-parse
 
 go 1.26.2
 

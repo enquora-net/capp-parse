@@ -16,11 +16,11 @@
 package cmd
 
 import (
-	"capp-parse/cmd/debug"
-	"capp-parse/cmd/install"
-	"capp-parse/cmd/parse"
-	"capp-parse/cmd/uninstall"
-	"capp-parse/cmd/verify"
+	"dev.cappuccino/capp-parse/cmd/debug"
+	"dev.cappuccino/capp-parse/cmd/install"
+	"dev.cappuccino/capp-parse/cmd/parse"
+	"dev.cappuccino/capp-parse/cmd/uninstall"
+	"dev.cappuccino/capp-parse/cmd/verify"
 
 	"github.com/spf13/cobra"
 )

@@ -24,7 +24,7 @@ package debug
 import (
 	"os"
 
-	"capp-parse/internal/capp"
+	"dev.cappuccino/capp-parse/internal/capp"
 
 	"github.com/spf13/cobra"
 )

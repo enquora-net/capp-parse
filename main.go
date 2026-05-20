@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	"capp-parse/cmd"
+	"dev.cappuccino/capp-parse/cmd"
 )
 
 // version is set at link time:
