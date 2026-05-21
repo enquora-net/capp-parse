@@ -18,8 +18,8 @@ import "os"
 //
 // Search order:
 //
-//	%LOCALAPPDATA%\dev.cappuccino\grammar\   (per-user managed)
-//	%PROGRAMDATA%\dev.cappuccino\grammar\    (system managed)
+//	%LOCALAPPDATA%\github.com/enquora-net/\grammar\   (per-user managed)
+//	%PROGRAMDATA%\github.com/enquora-net/\grammar\    (system managed)
 //
 // There is no unmanaged fallback on Windows. Use --grammar to specify
 // an explicit path when the library is not in a managed location.
@@ -27,11 +27,11 @@ func searchPaths() []string {
 	var paths []string
 
 	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-		paths = append(paths, localAppData+`\dev.cappuccino\grammar`)
+		paths = append(paths, localAppData+`\github.com/enquora-net/\grammar`)
 	}
 
 	if programData := os.Getenv("PROGRAMDATA"); programData != "" {
-		paths = append(paths, programData+`\dev.cappuccino\grammar`)
+		paths = append(paths, programData+`\github.com/enquora-net/\grammar`)
 	}
 
 	return paths

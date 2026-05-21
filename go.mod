@@ -1,4 +1,4 @@
-module dev.cappuccino/capp-parse
+module github.com/github.com/enquora-net/capp-parse
 
 go 1.26.2
 

@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"os"
 
-	"dev.cappuccino/capp-parse/cmd"
+	"github.com/enquora-net/capp-parse/cmd"
 )
 
 // version is set at link time:

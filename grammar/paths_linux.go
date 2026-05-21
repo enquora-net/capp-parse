@@ -21,8 +21,8 @@ import (
 //
 // Search order follows the XDG Base Directory Specification:
 //
-//	$XDG_DATA_HOME/dev.cappuccino/grammar/          (default: ~/.local/share/...)
-//	$XDG_DATA_DIRS/dev.cappuccino/grammar/          (default: /usr/local/share/... then /usr/share/...)
+//	$XDG_DATA_HOME/github.com/enquora-net/grammar/          (default: ~/.local/share/...)
+//	$XDG_DATA_DIRS/github.com/enquora-net/grammar/          (default: /usr/local/share/... then /usr/share/...)
 //	/usr/local/lib                                   (unmanaged)
 func searchPaths() []string {
 	var paths []string
@@ -35,7 +35,7 @@ func searchPaths() []string {
 		}
 	}
 	if dataHome != "" {
-		paths = append(paths, dataHome+"/dev.cappuccino/grammar")
+		paths = append(paths, dataHome+"/github.com/enquora-net/grammar")
 	}
 
 	// XDG_DATA_DIRS: system managed locations
@@ -46,7 +46,7 @@ func searchPaths() []string {
 	for _, dir := range strings.Split(dataDirs, ":") {
 		dir = strings.TrimRight(dir, "/")
 		if dir != "" {
-			paths = append(paths, dir+"/dev.cappuccino/grammar")
+			paths = append(paths, dir+"/github.com/enquora-net/grammar")
 		}
 	}
 

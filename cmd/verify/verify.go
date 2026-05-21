@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"os"
 
-	"dev.cappuccino/capp-parse/grammar"
+	"github.com/enquora-net/capp-parse/grammar"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"

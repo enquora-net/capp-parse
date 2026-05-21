@@ -26,7 +26,7 @@ package debug
 import (
 	"os"
 
-	"dev.cappuccino/capp-parse/capp"
+	"github.com/enquora-net/capp-parse/capp"
 
 	"github.com/spf13/cobra"
 )

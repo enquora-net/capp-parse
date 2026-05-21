@@ -18,18 +18,18 @@ import "os"
 //
 // Search order:
 //
-//	~/Library/Application Support/dev.cappuccino/grammar/   (user managed)
-//	/Library/Application Support/dev.cappuccino/grammar/    (system managed)
+//	~/Library/Application Support/github.com/enquora-net/grammar/   (user managed)
+//	/Library/Application Support/github.com/enquora-net/grammar/    (system managed)
 //	/usr/local/lib                                           (unmanaged)
 func searchPaths() []string {
 	var paths []string
 
 	if home, err := os.UserHomeDir(); err == nil {
-		paths = append(paths, home+"/Library/Application Support/dev.cappuccino/grammar")
+		paths = append(paths, home+"/Library/Application Support/github.com/enquora-net/grammar")
 	}
 
 	paths = append(paths,
-		"/Library/Application Support/dev.cappuccino/grammar",
+		"/Library/Application Support/github.com/enquora-net/grammar",
 		"/usr/local/lib",
 	)
 

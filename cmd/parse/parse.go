@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"dev.cappuccino/capp-parse/capp"
+	"github.com/enquora-net/capp-parse/capp"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"

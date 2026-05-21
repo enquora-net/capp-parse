@@ -7,7 +7,7 @@
 # Each build artifact is accompanied by a individual .sha256 checksum file.
 
 BINARY       := capp-parse
-MODULE       := dev.cappuccino/capp-parse
+MODULE       := github.com/enquora-net/capp-parse
 VERSION      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS      := -ldflags "-X main.version=$(VERSION)"
 MACOS_SDK    := $(shell xcrun --sdk macosx --show-sdk-path)

@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"dev.cappuccino/capp-parse/grammar"
+	"github.com/enquora-net/capp-parse/grammar"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 

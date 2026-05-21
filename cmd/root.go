@@ -18,9 +18,9 @@
 package cmd
 
 import (
-	"dev.cappuccino/capp-parse/cmd/debug"
-	"dev.cappuccino/capp-parse/cmd/parse"
-	"dev.cappuccino/capp-parse/cmd/verify"
+	"github.com/enquora-net/capp-parse/cmd/debug"
+	"github.com/enquora-net/capp-parse/cmd/parse"
+	"github.com/enquora-net/capp-parse/cmd/verify"
 
 	"github.com/spf13/cobra"
 )
