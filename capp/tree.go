@@ -1,11 +1,14 @@
 /*
- * internal/capp/tree.go
- * capp-parse
+ * capp/tree.go
+ * cappuccino
  *
  * Created by David Richardson on Saturday, April 11, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- *
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
  */
+
 package capp
 
 import (
@@ -23,11 +26,14 @@ func countNodes(n *sitter.Node) int {
 	return count
 }
 
-func collectErrors(n *sitter.Node, src []byte, errs *[]string) {
+func collectErrors(n *sitter.Node, src []byte, errs *[]ParseError) {
 	if n.IsError() || n.IsMissing() {
 		start := n.StartPosition()
-		*errs = append(*errs, fmt.Sprintf("line %d col %d: %s",
-			start.Row+1, start.Column+1, errorContext(n, src)))
+		*errs = append(*errs, ParseError{
+			Row:     uint32(start.Row),
+			Column:  uint32(start.Column),
+			Message: errorContext(n, src),
+		})
 	}
 	for i := range n.ChildCount() {
 		collectErrors(n.Child(i), src, errs)
@@ -52,9 +58,10 @@ func errorContext(n *sitter.Node, src []byte) string {
 }
 
 // FormatNode renders a node and its descendants as an indented tree.
-// Leaf node text is shown truncated to maxTextLen characters.
+// Leaf node text is shown truncated to maxTextLen runes.
 const maxTextLen = 50
 
+// FormatNode renders a parse tree node as an indented, human-readable tree.
 func FormatNode(node *sitter.Node, source []byte, indent int) string {
 	var sb strings.Builder
 	prefix := strings.Repeat("  ", indent)

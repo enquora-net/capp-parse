@@ -1,10 +1,12 @@
 /*
  * cmd/debug/debug.go
- * capp-parse
+ * cappuccino
  *
  * Created by David Richardson on Thursday, April 23, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- *
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
  */
 
 /*
@@ -24,7 +26,7 @@ package debug
 import (
 	"os"
 
-	"dev.cappuccino/capp-parse/internal/capp"
+	"dev.cappuccino/capp-parse/capp"
 
 	"github.com/spf13/cobra"
 )

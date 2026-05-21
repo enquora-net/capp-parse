@@ -1,10 +1,12 @@
 /*
  * cmd/root.go
- * capp-parse
+ * cappuccino
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- *
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
  */
 
 /*
@@ -17,9 +19,7 @@ package cmd
 
 import (
 	"dev.cappuccino/capp-parse/cmd/debug"
-	"dev.cappuccino/capp-parse/cmd/install"
 	"dev.cappuccino/capp-parse/cmd/parse"
-	"dev.cappuccino/capp-parse/cmd/uninstall"
 	"dev.cappuccino/capp-parse/cmd/verify"
 
 	"github.com/spf13/cobra"
@@ -35,9 +35,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 	root.AddCommand(parse.NewParseCmd())
 	root.AddCommand(debug.NewDebugCmd())
-	root.AddCommand(install.NewInstallCmd())
 	root.AddCommand(verify.NewVerifyCmd())
-	root.AddCommand(uninstall.NewUninstallCmd())
 	root.AddCommand(newVersionCmd(version))
 
 	return root

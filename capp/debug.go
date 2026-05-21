@@ -1,11 +1,14 @@
 /*
- * internal/capp/debug.go
- * capp-parse
+ * capp/debug.go
+ * cappuccino
  *
  * Created by David Richardson on Thursday, April 23, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- *
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
  */
+
 package capp
 
 import (
@@ -16,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"dev.cappuccino/capp-parse/internal/grammar"
+	"dev.cappuccino/capp-parse/grammar"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 

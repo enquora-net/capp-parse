@@ -1,11 +1,14 @@
 /*
- * internal/capp/output.go
- * capp-parse
+ * capp/output.go
+ * cappuccino
  *
  * Created by David Richardson on Sunday, April 12, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- *
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
  */
+
 package capp
 
 import (
@@ -35,7 +38,7 @@ func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 
 	if r.HasError {
 		for _, e := range r.Errors {
-			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e)
+			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e.String())
 		}
 		return
 	}
@@ -44,10 +47,8 @@ func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 	case FormatSexp, FormatDefault:
 		fmt.Println(r.PrettySexp)
 	case FormatJSON:
-		// JSON tree walk not yet implemented
 		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 	case FormatAST:
-		// Typed IR not yet implemented
 		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 	default:
 		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
@@ -132,7 +133,7 @@ func EmitDebugProfile(p *DebugProfile) {
 func emitTTYResult(path string, r ParseResult) {
 	if r.HasError {
 		for _, e := range r.Errors {
-			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e)
+			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e.String())
 		}
 		return
 	}
@@ -140,17 +141,32 @@ func emitTTYResult(path string, r ParseResult) {
 }
 
 func emitJSONResult(path string, r ParseResult) {
-	type jsonResult struct {
-		Path      string   `json:"path"`
-		OK        bool     `json:"ok"`
-		NodeCount int      `json:"node_count,omitempty"`
-		Errors    []string `json:"errors,omitempty"`
+	type jsonError struct {
+		Row     uint32 `json:"row"`
+		Column  uint32 `json:"column"`
+		Message string `json:"message"`
 	}
+	type jsonResult struct {
+		Path      string      `json:"path"`
+		OK        bool        `json:"ok"`
+		NodeCount int         `json:"node_count,omitempty"`
+		Errors    []jsonError `json:"errors,omitempty"`
+	}
+
+	var jsonErrs []jsonError
+	for _, e := range r.Errors {
+		jsonErrs = append(jsonErrs, jsonError{
+			Row:     e.Row,
+			Column:  e.Column,
+			Message: e.Message,
+		})
+	}
+
 	line, _ := json.Marshal(jsonResult{
 		Path:      path,
 		OK:        !r.HasError,
 		NodeCount: r.NodeCount,
-		Errors:    r.Errors,
+		Errors:    jsonErrs,
 	})
 	fmt.Fprintf(os.Stdout, "%s\n", line)
 }

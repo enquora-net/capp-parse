@@ -1,0 +1,19 @@
+project = 'cappuccino'
+author = 'David Richardson'
+holder = 'David Richardson'
+use_full_filepath = true
+extensions = ['.go', '.js', '.j']
+
+# Optional: override default template
+template = """
+/*
+ * {{.Filename}}
+ * {{.Project}}
+ *
+ * Created by {{.Author}} on {{.Created}}.
+ * Copyright (c) 2026 {{.Author}}. All rights reserved.
+ * All responsibility for usage rests with the user.
+ * The author bears no liability for damages arising from usage,
+ * whether direct or indirect.
+ */
+"""
