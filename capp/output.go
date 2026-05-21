@@ -58,7 +58,7 @@ func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 // EmitWalkSummary writes the walk summary and performance report to stdout.
 // Called only when stdout is a TTY.
 func EmitWalkSummary(s WalkSummary) {
-	fmt.Fprintf(os.Stdout, "\n%d files  %d OK  %d errors  %d bytes  %s\n",
+	fmt.Fprintf(os.Stdout, "\n%d files  %d OK  %d error files  %d bytes  %s\n",
 		s.TotalFiles, s.OKFiles, s.ErrorFiles, s.TotalBytes,
 		s.Elapsed.Round(time.Millisecond))
 

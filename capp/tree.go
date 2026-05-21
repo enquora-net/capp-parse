@@ -67,6 +67,7 @@ func FormatNode(node *sitter.Node, source []byte, indent int) string {
 	prefix := strings.Repeat("  ", indent)
 	kind := node.Kind()
 	isError := kind == "ERROR"
+	isMissing := node.IsMissing()
 
 	label := kind
 	if isError {
@@ -74,12 +75,15 @@ func FormatNode(node *sitter.Node, source []byte, indent int) string {
 		ep := node.EndPosition()
 		label = fmt.Sprintf("❌ ERROR [%d:%d-%d:%d]",
 			sp.Row+1, sp.Column+1, ep.Row+1, ep.Column+1)
+	} else if isMissing {
+		sp := node.StartPosition()
+		label = fmt.Sprintf("⚠️ MISSING %s [%d:%d]", kind, sp.Row+1, sp.Column+1)
 	}
 
 	childCount := node.ChildCount()
 
 	if childCount == 0 {
-		if !isError {
+		if !isError && !isMissing {
 			text := string(source[node.StartByte():node.EndByte()])
 			text = strings.ReplaceAll(text, "\n", `\n`)
 			text = strings.ReplaceAll(text, "\t", `\t`)
@@ -102,10 +106,10 @@ func FormatNode(node *sitter.Node, source []byte, indent int) string {
 	return sb.String()
 }
 
-// FindFirstError performs a depth-first search for the first ERROR node.
+// FindFirstError performs a depth-first search for the first ERROR or MISSING node.
 // Returns the node and the ancestor chain from root to its parent.
 func FindFirstError(node *sitter.Node, ancestors []*sitter.Node) (*sitter.Node, []*sitter.Node) {
-	if node.Kind() == "ERROR" {
+	if node.Kind() == "ERROR" || node.IsMissing() {
 		return node, ancestors
 	}
 	for i := range node.ChildCount() {
