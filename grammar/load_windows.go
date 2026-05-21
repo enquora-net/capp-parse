@@ -1,4 +1,5 @@
 //go:build windows
+
 /*
  * grammar/load_windows.go
  * cappuccino

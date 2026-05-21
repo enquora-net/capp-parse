@@ -1,4 +1,5 @@
 //go:build darwin || linux
+
 /*
  * grammar/load_unix.go
  * cappuccino
