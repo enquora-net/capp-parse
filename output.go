@@ -1,6 +1,8 @@
 /*
- * capp/output.go
- * cappuccino
+ * output.go
+ * capp-parse
+ *
+ * CLI output functions for parse results.
  *
  * Created by David Richardson on Sunday, April 12, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
@@ -8,7 +10,6 @@
  * The author bears no liability for damages arising from usage,
  * whether direct or indirect.
  */
-
 package capp
 
 import (
@@ -17,6 +18,13 @@ import (
 	"os"
 	"sort"
 	"time"
+
+	"github.com/enquora-net/capp-parse/internal/core"
+)
+
+const (
+	iconOK  = core.IconOK
+	iconErr = core.IconErr
 )
 
 // MakeEmitFn returns the per-file emit function for the given output target.
@@ -28,8 +36,6 @@ func MakeEmitFn(isTTY bool) EmitFn {
 }
 
 // EmitResult writes a single-file parse result to stdout.
-// TTY: pretty-printed sexp or summary line.
-// Non-TTY: JSON per line for machine consumption.
 func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 	if !isTTY {
 		emitJSONResult(path, r)
@@ -46,17 +52,12 @@ func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 	switch f {
 	case FormatSexp, FormatDefault:
 		fmt.Println(r.PrettySexp)
-	case FormatJSON:
-		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
-	case FormatAST:
-		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 	default:
 		fmt.Fprintf(os.Stdout, "%s  %s (%d nodes)\n", iconOK, path, r.NodeCount)
 	}
 }
 
 // EmitWalkSummary writes the walk summary and performance report to stdout.
-// Called only when stdout is a TTY.
 func EmitWalkSummary(s WalkSummary) {
 	fmt.Fprintf(os.Stdout, "\n%d files  %d OK  %d error files  %d bytes  %s\n",
 		s.TotalFiles, s.OKFiles, s.ErrorFiles, s.TotalBytes,
@@ -109,9 +110,9 @@ func EmitDebugProfile(p *DebugProfile) {
 		}
 	}
 
-	fmt.Println("\n" + divider)
+	fmt.Println("\n" + core.Divider)
 	fmt.Println("PARSE PROFILE")
-	fmt.Println(divider)
+	fmt.Println(core.Divider)
 
 	for _, e := range p.Events {
 		icon := iconOK
@@ -121,7 +122,7 @@ func EmitDebugProfile(p *DebugProfile) {
 		fmt.Printf("%s  %8s  %s\n", icon, e.Elapsed.Round(time.Microsecond), e.Path)
 	}
 
-	fmt.Println(divider)
+	fmt.Println(core.Divider)
 	fmt.Printf("   files: %d\n", len(p.Events))
 	fmt.Printf("   total: %s\n", p.Total.Round(time.Microsecond))
 	if len(p.Events) > 0 {

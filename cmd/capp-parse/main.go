@@ -1,6 +1,6 @@
 /*
- * main.go
- * cappuccino
+ * cmd/capp-parse/main.go
+ * capp-parse
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
@@ -8,7 +8,6 @@
  * The author bears no liability for damages arising from usage,
  * whether direct or indirect.
  */
-
 package main
 
 import (

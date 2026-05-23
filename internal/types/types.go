@@ -1,6 +1,10 @@
 /*
- * capp/capp.go
- * cappuccino
+ * internal/types/types.go
+ * capp-parse
+ *
+ * All shared type definitions for the capp-parse public API.
+ * Pure Go — no CGo, no go-tree-sitter imports.
+ * Consumed by internal/core (implementation) and the root package (facade).
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
@@ -8,31 +12,14 @@
  * The author bears no liability for damages arising from usage,
  * whether direct or indirect.
  */
-
-/*
- * Package capp is the exported library interface for capp-parse.
- *
- * It provides both single-file and project-scale parsing of Objective-J
- * source trees using the tree-sitter grammar. The cmd layer and the
- * Cappuccino compiler are the two intended consumers.
- *
- * Tree lifetime: ParseProject returns a ProjectResult whose FileResult
- * entries carry live *sitter.Tree values. The caller must call
- * ProjectResult.Close() when the trees are no longer needed. Walk
- * manages tree lifetime internally — trees are closed after each
- * EmitFn call returns.
- */
-package capp
+package types
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 )
-
-// BoundaryVersion identifies the interop contract version at the
-// Lisette/Go boundary. Increment when the public API changes in a
-// way that affects generated Go code.
-const BoundaryVersion = 1
 
 // ---------------------------------------------------------------------------
 // Mode
@@ -48,9 +35,35 @@ const (
 	ModeBoth             // .j .sj .js
 )
 
+// Accept reports whether path should be parsed under mode m.
+func (m Mode) Accept(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch m {
+	case ModeObjj:
+		return ext == ".j" || ext == ".sj"
+	case ModeJS:
+		return ext == ".js"
+	case ModeBoth:
+		return ext == ".j" || ext == ".sj" || ext == ".js"
+	default: // ModeAuto
+		return ext == ".j" || ext == ".sj" || ext == ".js"
+	}
+}
+
 // ParseMode converts a flag string to a Mode.
 func ParseMode(s string) (Mode, error) {
-	return parseMode(s)
+	switch strings.ToLower(s) {
+	case "auto", "":
+		return ModeAuto, nil
+	case "objj":
+		return ModeObjj, nil
+	case "js":
+		return ModeJS, nil
+	case "both":
+		return ModeBoth, nil
+	default:
+		return 0, fmt.Errorf("unknown mode %q: use auto | objj | js | both", s)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +105,7 @@ type ParseError struct {
 	Message string
 }
 
+// String returns a human-readable representation of the error.
 func (e ParseError) String() string {
 	return fmt.Sprintf("line %d col %d: %s", e.Row+1, e.Column+1, e.Message)
 }
@@ -121,7 +135,6 @@ type ParseConfig struct {
 }
 
 // ParseResult is the outcome of a single-file parse for CLI consumption.
-// The tree is not exposed here; for compiler use, call ParseFile or ParseProject.
 type ParseResult struct {
 	HasError   bool
 	Errors     []ParseError
@@ -131,18 +144,12 @@ type ParseResult struct {
 	Timing     *Timing // nil when Benchmark is false
 }
 
-// Parse parses a single file as described by cfg and returns a ParseResult
-// suitable for CLI output. The tree is closed before returning.
-func Parse(cfg ParseConfig) (ParseResult, error) {
-	return runParse(cfg)
-}
-
 // ---------------------------------------------------------------------------
 // FileResult — compiler-facing single-file result
 // ---------------------------------------------------------------------------
 
 // FileResult is the outcome of parsing a single file for compiler use.
-// Tree and Source are live until ProjectResult.Close() is called.
+// Tree and Source are live until Close() is called on the owning ProjectResult.
 type FileResult struct {
 	Path      string
 	Source    []byte
@@ -171,33 +178,25 @@ type ProjectConfig struct {
 }
 
 // ProjectResult is the aggregate outcome of a project-scale parse.
-// Call Close() when the compiler pass is complete.
+// Call Close() when the compiler pass is complete to release live trees.
 type ProjectResult struct {
 	Files      []*FileResult
 	Duration   time.Duration
 	FileCount  int
 	ErrorCount int
 	ByteCount  int64
+	closeFn    func() // set by internal/core
 }
+
+// SetCloseFn is called by internal/core to register the tree-release function.
+func (pr *ProjectResult) SetCloseFn(fn func()) { pr.closeFn = fn }
 
 // Close releases all live tree-sitter trees held by this result.
 // Must be called exactly once when the compiler pass is complete.
 func (pr *ProjectResult) Close() {
-	closeProjectResult(pr)
-}
-
-// ParseProject walks the source tree described by cfg, parses every
-// matching file, and returns a ProjectResult with all trees live.
-// The caller must call ProjectResult.Close() when done.
-func ParseProject(cfg ProjectConfig) (*ProjectResult, error) {
-	return runParseProject(cfg)
-}
-
-// ParseFile parses a single file and returns a live FileResult.
-// The caller must close the tree via ProjectResult.Close() or directly
-// via the sitter.Tree embedded in FileResult.Tree.
-func ParseFile(cfg ParseConfig) (*FileResult, error) {
-	return runParseFile(cfg)
+	if pr.closeFn != nil {
+		pr.closeFn()
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +204,6 @@ func ParseFile(cfg ParseConfig) (*FileResult, error) {
 // ---------------------------------------------------------------------------
 
 // EmitFn is called once per file as results are produced.
-// The tree is closed immediately after EmitFn returns.
 type EmitFn func(path string, result ParseResult)
 
 // WalkConfig is the complete specification for a source-tree walk.
@@ -249,12 +247,6 @@ type BenchEvent struct {
 	Bytes   int
 }
 
-// Walk executes the parallel walk described by cfg.
-// Tree lifetime is managed internally; trees are closed after each EmitFn call.
-func Walk(cfg WalkConfig) (WalkSummary, error) {
-	return runWalk(cfg)
-}
-
 // ---------------------------------------------------------------------------
 // Debug
 // ---------------------------------------------------------------------------
@@ -286,9 +278,4 @@ type DebugEvent struct {
 	Path    string
 	Elapsed time.Duration
 	OK      bool
-}
-
-// Debug walks a file or directory, stopping at the first parse error.
-func Debug(cfg DebugConfig) (DebugResult, error) {
-	return runDebug(cfg)
 }

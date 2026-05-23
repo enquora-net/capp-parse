@@ -1,20 +1,17 @@
 /*
- * capp/tree.go
- * cappuccino
+ * internal/core/tree.go
+ * capp-parse
  *
  * Created by David Richardson on Saturday, April 11, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- * All responsibility for usage rests with the user.
- * The author bears no liability for damages arising from usage,
- * whether direct or indirect.
  */
-
-package capp
+package core
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -26,10 +23,10 @@ func countNodes(n *sitter.Node) int {
 	return count
 }
 
-func collectErrors(n *sitter.Node, src []byte, errs *[]ParseError) {
+func collectErrors(n *sitter.Node, src []byte, errs *[]types.ParseError) {
 	if n.IsError() || n.IsMissing() {
 		start := n.StartPosition()
-		*errs = append(*errs, ParseError{
+		*errs = append(*errs, types.ParseError{
 			Row:     uint32(start.Row),
 			Column:  uint32(start.Column),
 			Message: errorContext(n, src),
@@ -57,8 +54,7 @@ func errorContext(n *sitter.Node, src []byte) string {
 	return fmt.Sprintf("ERROR %q", snippet)
 }
 
-// FormatNode renders a node and its descendants as an indented tree.
-// Leaf node text is shown truncated to maxTextLen runes.
+// maxTextLen is the maximum number of runes shown for leaf node text.
 const maxTextLen = 50
 
 // FormatNode renders a parse tree node as an indented, human-readable tree.
@@ -107,7 +103,6 @@ func FormatNode(node *sitter.Node, source []byte, indent int) string {
 }
 
 // FindFirstError performs a depth-first search for the first ERROR or MISSING node.
-// Returns the node and the ancestor chain from root to its parent.
 func FindFirstError(node *sitter.Node, ancestors []*sitter.Node) (*sitter.Node, []*sitter.Node) {
 	if node.Kind() == "ERROR" || node.IsMissing() {
 		return node, ancestors

@@ -1,15 +1,11 @@
 /*
- * capp/debug.go
- * cappuccino
+ * internal/core/debug.go
+ * capp-parse
  *
  * Created by David Richardson on Thursday, April 23, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
- * All responsibility for usage rests with the user.
- * The author bears no liability for damages arising from usage,
- * whether direct or indirect.
  */
-
-package capp
+package core
 
 import (
 	"fmt"
@@ -20,6 +16,7 @@ import (
 	"time"
 
 	"github.com/enquora-net/capp-parse/grammar"
+	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -31,20 +28,22 @@ const (
 	ansiRed   = "\033[31m"
 	ansiReset = "\033[0m"
 
-	iconOK  = ansiGreen + "✓" + ansiReset
-	iconErr = ansiRed + "✗" + ansiReset
+	IconOK  = ansiGreen + "✓" + ansiReset
+	IconErr = ansiRed + "✗" + ansiReset
+	Divider = divider
 )
 
-func runDebug(cfg DebugConfig) (DebugResult, error) {
+// RunDebug walks a file or directory, stopping at the first parse error.
+func RunDebug(cfg types.DebugConfig) (types.DebugResult, error) {
 	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
-		return DebugResult{}, err
+		return types.DebugResult{}, err
 	}
 
 	parser := sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(lang); err != nil {
-		return DebugResult{}, fmt.Errorf("setting language: %w", err)
+		return types.DebugResult{}, fmt.Errorf("setting language: %w", err)
 	}
 
 	contextLines := cfg.ContextLines
@@ -54,23 +53,23 @@ func runDebug(cfg DebugConfig) (DebugResult, error) {
 
 	info, err := os.Stat(cfg.Path)
 	if err != nil {
-		return DebugResult{}, fmt.Errorf("accessing %s: %w", cfg.Path, err)
+		return types.DebugResult{}, fmt.Errorf("accessing %s: %w", cfg.Path, err)
 	}
 
-	var events []DebugEvent
+	var events []types.DebugEvent
 	var totalElapsed time.Duration
 	hasError := false
 
 	if info.IsDir() {
 		paths, err := collectPaths(cfg.Path, cfg.Mode)
 		if err != nil {
-			return DebugResult{}, err
+			return types.DebugResult{}, err
 		}
 		for _, path := range paths {
 			ok, elapsed := debugFile(path, parser, cfg.Path, contextLines, cfg.NoXcode)
 			totalElapsed += elapsed
 			if cfg.Profile {
-				events = append(events, DebugEvent{Path: path, Elapsed: elapsed, OK: ok})
+				events = append(events, types.DebugEvent{Path: path, Elapsed: elapsed, OK: ok})
 			}
 			if !ok {
 				hasError = true
@@ -81,16 +80,16 @@ func runDebug(cfg DebugConfig) (DebugResult, error) {
 		ok, elapsed := debugFile(cfg.Path, parser, "", contextLines, cfg.NoXcode)
 		totalElapsed += elapsed
 		if cfg.Profile {
-			events = append(events, DebugEvent{Path: cfg.Path, Elapsed: elapsed, OK: ok})
+			events = append(events, types.DebugEvent{Path: cfg.Path, Elapsed: elapsed, OK: ok})
 		}
 		if !ok {
 			hasError = true
 		}
 	}
 
-	result := DebugResult{HasError: hasError}
+	result := types.DebugResult{HasError: hasError}
 	if cfg.Profile {
-		result.Profile = &DebugProfile{
+		result.Profile = &types.DebugProfile{
 			Events: events,
 			Total:  totalElapsed,
 		}
@@ -121,7 +120,7 @@ func debugFile(path string, parser *sitter.Parser, root string, contextLines int
 				displayPath = rel
 			}
 		}
-		fmt.Printf("%s  %s\n", iconOK, displayPath)
+		fmt.Printf("%s  %s\n", IconOK, displayPath)
 		return true, elapsed
 	}
 
