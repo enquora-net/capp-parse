@@ -7,10 +7,23 @@
  */
 package core
 
-import "github.com/enquora-net/capp-parse/internal/types"
+import (
+	"path/filepath"
+	"strings"
+)
 
-// accept reports whether path should be parsed under mode m.
-// Wraps types.Mode.Accept for use within the core package.
-func accept(m types.Mode, path string) bool {
-	return m.Accept(path)
+// Mode int values mirror the root package constants (ModeAuto=0, ModeObjj=1, ModeJS=2, ModeBoth=3).
+// accept reports whether path should be parsed under the given mode.
+func accept(mode int, path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch mode {
+	case 1: // ModeObjj
+		return ext == ".j" || ext == ".sj"
+	case 2: // ModeJS
+		return ext == ".js"
+	case 3: // ModeBoth
+		return ext == ".j" || ext == ".sj" || ext == ".js"
+	default: // ModeAuto = 0
+		return ext == ".j" || ext == ".sj" || ext == ".js"
+	}
 }

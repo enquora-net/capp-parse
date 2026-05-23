@@ -19,17 +19,11 @@ import (
 	"time"
 
 	"github.com/enquora-net/capp-parse/grammar"
-	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-// ---------------------------------------------------------------------------
-// Project-scale parse — compiler path
-// ---------------------------------------------------------------------------
-
-// RunParseProject walks the source tree, parses every matching file, and
-// returns a ProjectResult with all trees live. Call Close() when done.
-func RunParseProject(cfg types.ProjectConfig) (*types.ProjectResult, error) {
+// RunParseProject walks the source tree and returns a ProjectResult with all trees live.
+func RunParseProject(cfg ProjectConfig) (*ProjectResult, error) {
 	workers := cfg.Workers
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
@@ -49,7 +43,7 @@ func RunParseProject(cfg types.ProjectConfig) (*types.ProjectResult, error) {
 		path    string
 		src     []byte
 		tree    *sitter.Tree
-		errors  []types.ParseError
+		errors  []ParseError
 		nodes   int
 		elapsed time.Duration
 		readErr error
@@ -102,18 +96,16 @@ func RunParseProject(cfg types.ProjectConfig) (*types.ProjectResult, error) {
 		close(results)
 	}()
 
-	pr := &types.ProjectResult{}
+	pr := &ProjectResult{}
 	wallStart := time.Now()
 
 	for r := range results {
 		pr.FileCount++
 		if r.readErr != nil {
 			pr.ErrorCount++
-			pr.Files = append(pr.Files, &types.FileResult{
-				Path: r.path,
-				Errors: []types.ParseError{{
-					Message: fmt.Sprintf("read error: %v", r.readErr),
-				}},
+			pr.Files = append(pr.Files, &FileResult{
+				Path:   r.path,
+				Errors: []ParseError{{Message: fmt.Sprintf("read error: %v", r.readErr)}},
 			})
 			continue
 		}
@@ -121,7 +113,7 @@ func RunParseProject(cfg types.ProjectConfig) (*types.ProjectResult, error) {
 		if len(r.errors) > 0 {
 			pr.ErrorCount++
 		}
-		pr.Files = append(pr.Files, &types.FileResult{
+		pr.Files = append(pr.Files, &FileResult{
 			Path:      r.path,
 			Source:    r.src,
 			Tree:      r.tree,
@@ -132,12 +124,11 @@ func RunParseProject(cfg types.ProjectConfig) (*types.ProjectResult, error) {
 	}
 
 	pr.Duration = time.Since(wallStart)
-	pr.SetCloseFn(func() { closeProjectResult(pr) })
 	return pr, nil
 }
 
-// closeProjectResult releases all live trees in a ProjectResult.
-func closeProjectResult(pr *types.ProjectResult) {
+// CloseProjectResult releases all live trees in a ProjectResult.
+func CloseProjectResult(pr *ProjectResult) {
 	for i := range pr.Files {
 		if pr.Files[i].Tree != nil {
 			if tree, ok := pr.Files[i].Tree.(*sitter.Tree); ok {
@@ -148,12 +139,8 @@ func closeProjectResult(pr *types.ProjectResult) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Streaming walk — CLI path
-// ---------------------------------------------------------------------------
-
 // RunWalk executes the parallel walk described by cfg.
-func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
+func RunWalk(cfg WalkConfig) (WalkSummary, error) {
 	stdout := writerOrStdout(cfg.Stdout)
 	stderr := writerOrStderr(cfg.Stderr)
 
@@ -164,12 +151,12 @@ func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
 
 	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
-		return types.WalkSummary{}, err
+		return WalkSummary{}, err
 	}
 
 	paths, err := resolvePaths(cfg.Root, cfg.Paths, cfg.Mode)
 	if err != nil {
-		return types.WalkSummary{}, err
+		return WalkSummary{}, err
 	}
 
 	type result struct {
@@ -177,7 +164,7 @@ func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
 		elapsed    time.Duration
 		bytes      int
 		hasErr     bool
-		errors     []types.ParseError
+		errors     []ParseError
 		nodeCount  int
 		sexp       string
 		prettySexp string
@@ -249,7 +236,7 @@ func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
 		close(results)
 	}()
 
-	summary := types.WalkSummary{}
+	summary := WalkSummary{}
 	bench := newBenchAccumulator(cfg.Benchmark)
 
 	for r := range results {
@@ -262,7 +249,7 @@ func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
 		summary.TotalBytes += r.bytes
 		bench.record(r.path, r.elapsed, r.bytes)
 
-		pr := types.ParseResult{
+		pr := ParseResult{
 			HasError:   r.hasErr,
 			Errors:     r.errors,
 			NodeCount:  r.nodeCount,
@@ -292,18 +279,14 @@ func RunWalk(cfg types.WalkConfig) (types.WalkSummary, error) {
 	return summary, nil
 }
 
-// ---------------------------------------------------------------------------
-// Shared utilities
-// ---------------------------------------------------------------------------
-
-func resolvePaths(root string, explicit []string, mode types.Mode) ([]string, error) {
+func resolvePaths(root string, explicit []string, mode int) ([]string, error) {
 	if len(explicit) > 0 {
 		return explicit, nil
 	}
 	return collectPaths(root, mode)
 }
 
-func collectPaths(root string, mode types.Mode) ([]string, error) {
+func collectPaths(root string, mode int) ([]string, error) {
 	var paths []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {

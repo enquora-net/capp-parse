@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -23,10 +22,10 @@ func countNodes(n *sitter.Node) int {
 	return count
 }
 
-func collectErrors(n *sitter.Node, src []byte, errs *[]types.ParseError) {
+func collectErrors(n *sitter.Node, src []byte, errs *[]ParseError) {
 	if n.IsError() || n.IsMissing() {
 		start := n.StartPosition()
-		*errs = append(*errs, types.ParseError{
+		*errs = append(*errs, ParseError{
 			Row:     uint32(start.Row),
 			Column:  uint32(start.Column),
 			Message: errorContext(n, src),
@@ -54,7 +53,6 @@ func errorContext(n *sitter.Node, src []byte) string {
 	return fmt.Sprintf("ERROR %q", snippet)
 }
 
-// maxTextLen is the maximum number of runes shown for leaf node text.
 const maxTextLen = 50
 
 // FormatNode renders a parse tree node as an indented, human-readable tree.

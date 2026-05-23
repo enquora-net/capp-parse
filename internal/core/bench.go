@@ -7,15 +7,11 @@
  */
 package core
 
-import (
-	"time"
-
-	"github.com/enquora-net/capp-parse/internal/types"
-)
+import "time"
 
 type benchAccumulator struct {
 	enabled bool
-	events  []types.BenchEvent
+	events  []BenchEvent
 	total   time.Duration
 	bytes   int
 }
@@ -28,16 +24,16 @@ func (b *benchAccumulator) record(path string, elapsed time.Duration, bytes int)
 	if !b.enabled {
 		return
 	}
-	b.events = append(b.events, types.BenchEvent{Path: path, Elapsed: elapsed, Bytes: bytes})
+	b.events = append(b.events, BenchEvent{Path: path, Elapsed: elapsed, Bytes: bytes})
 	b.total += elapsed
 	b.bytes += bytes
 }
 
-func (b *benchAccumulator) report(wall time.Duration) *types.BenchReport {
+func (b *benchAccumulator) report(wall time.Duration) *BenchReport {
 	if !b.enabled {
 		return nil
 	}
-	return &types.BenchReport{
+	return &BenchReport{
 		WallTime:   wall,
 		ParseTotal: b.total,
 		Files:      len(b.events),

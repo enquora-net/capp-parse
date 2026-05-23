@@ -41,14 +41,12 @@ func EmitResult(path string, r ParseResult, f Format, isTTY bool) {
 		emitJSONResult(path, r)
 		return
 	}
-
 	if r.HasError {
 		for _, e := range r.Errors {
 			fmt.Fprintf(os.Stderr, "%s  %s: %s\n", iconErr, path, e.String())
 		}
 		return
 	}
-
 	switch f {
 	case FormatSexp, FormatDefault:
 		fmt.Println(r.PrettySexp)
@@ -75,9 +73,7 @@ func EmitWalkSummary(s WalkSummary) {
 
 	events := make([]BenchEvent, len(b.Events))
 	copy(events, b.Events)
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Elapsed > events[j].Elapsed
-	})
+	sort.Slice(events, func(i, j int) bool { return events[i].Elapsed > events[j].Elapsed })
 	limit := 10
 	if len(events) < limit {
 		limit = len(events)
@@ -102,18 +98,15 @@ func EmitDebugProfile(p *DebugProfile) {
 	if p == nil {
 		return
 	}
-
 	var maxElapsed time.Duration
 	for _, e := range p.Events {
 		if e.Elapsed > maxElapsed {
 			maxElapsed = e.Elapsed
 		}
 	}
-
 	fmt.Println("\n" + core.Divider)
 	fmt.Println("PARSE PROFILE")
 	fmt.Println(core.Divider)
-
 	for _, e := range p.Events {
 		icon := iconOK
 		if !e.OK {
@@ -121,7 +114,6 @@ func EmitDebugProfile(p *DebugProfile) {
 		}
 		fmt.Printf("%s  %8s  %s\n", icon, e.Elapsed.Round(time.Microsecond), e.Path)
 	}
-
 	fmt.Println(core.Divider)
 	fmt.Printf("   files: %d\n", len(p.Events))
 	fmt.Printf("   total: %s\n", p.Total.Round(time.Microsecond))
@@ -153,16 +145,10 @@ func emitJSONResult(path string, r ParseResult) {
 		NodeCount int         `json:"node_count,omitempty"`
 		Errors    []jsonError `json:"errors,omitempty"`
 	}
-
 	var jsonErrs []jsonError
 	for _, e := range r.Errors {
-		jsonErrs = append(jsonErrs, jsonError{
-			Row:     e.Row,
-			Column:  e.Column,
-			Message: e.Message,
-		})
+		jsonErrs = append(jsonErrs, jsonError{Row: e.Row, Column: e.Column, Message: e.Message})
 	}
-
 	line, _ := json.Marshal(jsonResult{
 		Path:      path,
 		OK:        !r.HasError,

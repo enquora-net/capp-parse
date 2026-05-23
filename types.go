@@ -1,10 +1,9 @@
 /*
- * internal/types/types.go
+ * types.go
  * capp-parse
  *
- * All shared type definitions for the capp-parse public API.
- * Pure Go — no CGo, no go-tree-sitter imports.
- * Consumed by internal/core (implementation) and the root package (facade).
+ * All public type definitions for the capp-parse library.
+ * Defined directly at the root package level — no internal references.
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
@@ -12,7 +11,7 @@
  * The author bears no liability for damages arising from usage,
  * whether direct or indirect.
  */
-package types
+package capp
 
 import (
 	"fmt"
@@ -45,7 +44,7 @@ func (m Mode) Accept(path string) bool {
 		return ext == ".js"
 	case ModeBoth:
 		return ext == ".j" || ext == ".sj" || ext == ".js"
-	default: // ModeAuto
+	default:
 		return ext == ".j" || ext == ".sj" || ext == ".js"
 	}
 }
@@ -74,10 +73,10 @@ func ParseMode(s string) (Mode, error) {
 type Format int
 
 const (
-	FormatDefault Format = iota // same as FormatSexp
-	FormatSexp                  // tree-sitter s-expression
-	FormatJSON                  // JSON tree (not yet implemented)
-	FormatAST                   // typed IR (not yet implemented)
+	FormatDefault Format = iota
+	FormatSexp
+	FormatJSON
+	FormatAST
 )
 
 // ParseFormat converts a flag string to a Format.
@@ -130,18 +129,18 @@ type ParseConfig struct {
 	Src         []byte
 	Mode        Mode
 	Format      Format
-	GrammarPath string // explicit dylib path; empty = search
+	GrammarPath string
 	Benchmark   bool
 }
 
-// ParseResult is the outcome of a single-file parse for CLI consumption.
+// ParseResult is the outcome of a single-file parse.
 type ParseResult struct {
 	HasError   bool
 	Errors     []ParseError
 	NodeCount  int
 	Sexp       string
 	PrettySexp string
-	Timing     *Timing // nil when Benchmark is false
+	Timing     *Timing
 }
 
 // ---------------------------------------------------------------------------
@@ -149,20 +148,17 @@ type ParseResult struct {
 // ---------------------------------------------------------------------------
 
 // FileResult is the outcome of parsing a single file for compiler use.
-// Tree and Source are live until Close() is called on the owning ProjectResult.
 type FileResult struct {
 	Path      string
 	Source    []byte
-	Tree      interface{} // *sitter.Tree — typed as interface{} at the boundary
+	Tree      interface{}
 	Errors    []ParseError
 	NodeCount int
 	Duration  time.Duration
 }
 
 // HasError reports whether the file had any parse errors.
-func (f *FileResult) HasError() bool {
-	return len(f.Errors) > 0
-}
+func (f *FileResult) HasError() bool { return len(f.Errors) > 0 }
 
 // ---------------------------------------------------------------------------
 // Project-scale parse
@@ -170,29 +166,28 @@ func (f *FileResult) HasError() bool {
 
 // ProjectConfig is the complete specification for a project-scale parse.
 type ProjectConfig struct {
-	Root        string   // directory to walk; empty when Paths is set
-	Paths       []string // explicit path list; overrides Root
+	Root        string
+	Paths       []string
 	Mode        Mode
-	GrammarPath string // explicit dylib path; empty = search
+	GrammarPath string
 	Workers     int
 }
 
 // ProjectResult is the aggregate outcome of a project-scale parse.
-// Call Close() when the compiler pass is complete to release live trees.
+// Call Close() when the compiler pass is complete.
 type ProjectResult struct {
 	Files      []*FileResult
 	Duration   time.Duration
 	FileCount  int
 	ErrorCount int
 	ByteCount  int64
-	closeFn    func() // set by internal/core
+	closeFn    func()
 }
 
 // SetCloseFn is called by internal/core to register the tree-release function.
 func (pr *ProjectResult) SetCloseFn(fn func()) { pr.closeFn = fn }
 
 // Close releases all live tree-sitter trees held by this result.
-// Must be called exactly once when the compiler pass is complete.
 func (pr *ProjectResult) Close() {
 	if pr.closeFn != nil {
 		pr.closeFn()
@@ -200,7 +195,7 @@ func (pr *ProjectResult) Close() {
 }
 
 // ---------------------------------------------------------------------------
-// Walk — streaming project walk for CLI use
+// Walk
 // ---------------------------------------------------------------------------
 
 // EmitFn is called once per file as results are produced.
@@ -208,17 +203,17 @@ type EmitFn func(path string, result ParseResult)
 
 // WalkConfig is the complete specification for a source-tree walk.
 type WalkConfig struct {
-	Root        string   // directory to walk; empty when Paths is set
-	Paths       []string // explicit path list (stdin stream mode); overrides Root
+	Root        string
+	Paths       []string
 	Mode        Mode
-	GrammarPath string // explicit dylib path; empty = search
+	GrammarPath string
 	Workers     int
 	FailFast    bool
 	Quiet       bool
 	Benchmark   bool
 	Stdout      interface{ Write([]byte) (int, error) }
 	Stderr      interface{ Write([]byte) (int, error) }
-	EmitFn      EmitFn // called per file; nil = silent
+	EmitFn      EmitFn
 }
 
 // WalkSummary is the aggregate outcome of a source-tree walk.
@@ -228,7 +223,7 @@ type WalkSummary struct {
 	ErrorFiles int
 	TotalBytes int
 	Elapsed    time.Duration
-	Bench      *BenchReport // nil when Benchmark is false
+	Bench      *BenchReport
 }
 
 // BenchReport is the aggregate timing data collected during a walk.
@@ -255,7 +250,7 @@ type BenchEvent struct {
 type DebugConfig struct {
 	Path         string
 	Mode         Mode
-	GrammarPath  string // explicit dylib path; empty = search
+	GrammarPath  string
 	Profile      bool
 	ContextLines int
 	NoXcode      bool
@@ -264,7 +259,7 @@ type DebugConfig struct {
 // DebugResult is the outcome of a debug walk.
 type DebugResult struct {
 	HasError bool
-	Profile  *DebugProfile // nil when Profile is false
+	Profile  *DebugProfile
 }
 
 // DebugProfile is the timing data collected during a debug walk.

@@ -12,13 +12,16 @@ import (
 	"time"
 
 	"github.com/enquora-net/capp-parse/grammar"
-	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
+const (
+	formatDefault = 0
+	formatSexp    = 1
+)
+
 // RunParseFile parses a single file and returns a live FileResult.
-// The tree is owned by the caller; release via the owning ProjectResult.Close().
-func RunParseFile(cfg types.ParseConfig) (*types.FileResult, error) {
+func RunParseFile(cfg ParseConfig) (*FileResult, error) {
 	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
 		return nil, err
@@ -30,43 +33,42 @@ func RunParseFile(cfg types.ParseConfig) (*types.FileResult, error) {
 		return nil, fmt.Errorf("setting language: %w", err)
 	}
 
-	src := cfg.Src
-	if src == nil {
-		return nil, fmt.Errorf("ParseFile: Src must not be nil; read the file before calling")
+	if cfg.Src == nil {
+		return nil, fmt.Errorf("ParseFile: Src must not be nil")
 	}
 
 	t0 := time.Now()
-	tree := parser.Parse(src, nil)
+	tree := parser.Parse(cfg.Src, nil)
 	elapsed := time.Since(t0)
 
 	root := tree.RootNode()
-	fr := &types.FileResult{
+	fr := &FileResult{
 		Path:      cfg.Path,
-		Source:    src,
+		Source:    cfg.Src,
 		Tree:      tree,
 		NodeCount: countNodes(root),
 		Duration:  elapsed,
 	}
 
 	if root.HasError() {
-		collectErrors(root, src, &fr.Errors)
+		collectErrors(root, cfg.Src, &fr.Errors)
 	}
 
 	return fr, nil
 }
 
 // RunParse parses a single file for CLI consumption.
-// The tree is closed before returning; use RunParseFile for compiler use.
-func RunParse(cfg types.ParseConfig) (types.ParseResult, error) {
+// The tree is closed before returning.
+func RunParse(cfg ParseConfig) (ParseResult, error) {
 	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
-		return types.ParseResult{}, err
+		return ParseResult{}, err
 	}
 
 	parser := sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(lang); err != nil {
-		return types.ParseResult{}, fmt.Errorf("setting language: %w", err)
+		return ParseResult{}, fmt.Errorf("setting language: %w", err)
 	}
 
 	t0 := time.Now()
@@ -75,20 +77,20 @@ func RunParse(cfg types.ParseConfig) (types.ParseResult, error) {
 	defer tree.Close()
 
 	root := tree.RootNode()
-	result := types.ParseResult{
+	result := ParseResult{
 		HasError:  root.HasError(),
 		NodeCount: countNodes(root),
 	}
 
 	if cfg.Benchmark {
-		result.Timing = &types.Timing{Elapsed: elapsed, Bytes: len(cfg.Src)}
+		result.Timing = &Timing{Elapsed: elapsed, Bytes: len(cfg.Src)}
 	}
 
 	if result.HasError {
 		collectErrors(root, cfg.Src, &result.Errors)
 	}
 
-	if cfg.Format == types.FormatSexp || cfg.Format == types.FormatDefault {
+	if cfg.Format == formatSexp || cfg.Format == formatDefault {
 		result.Sexp = root.ToSexp()
 		result.PrettySexp = FormatNode(root, cfg.Src, 0)
 	}

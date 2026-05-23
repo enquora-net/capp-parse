@@ -5,9 +5,9 @@
  * Public facade for the capp-parse library.
  * Import path: github.com/enquora-net/capp-parse
  *
- * Type aliases re-export all public types from internal/types.
- * Function wrappers delegate to internal/core.
- * No CGo, no go-tree-sitter imports at this level.
+ * All public types are defined in types.go at the root package level.
+ * Function implementations delegate to internal/core via field conversion.
+ * No internal package references appear in this file or types.go.
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.
@@ -22,111 +22,215 @@
  * It provides both single-file and project-scale parsing of Objective-J
  * source trees using the tree-sitter grammar. The cmd layer and the
  * Cappuccino compiler are the two intended consumers.
- *
- * Tree lifetime: ParseProject returns a ProjectResult whose FileResult
- * entries carry live *sitter.Tree values. The caller must call
- * ProjectResult.Close() when the trees are no longer needed. Walk
- * manages tree lifetime internally — trees are closed after each
- * EmitFn call returns.
  */
 package capp
 
-import (
-	"github.com/enquora-net/capp-parse/internal/core"
-	"github.com/enquora-net/capp-parse/internal/types"
-)
+import "github.com/enquora-net/capp-parse/internal/core"
 
 // BoundaryVersion identifies the interop contract version at the
-// Lisette/Go boundary. Increment when the public API changes in a
-// way that affects generated Go code.
+// Lisette/Go boundary. Increment when the public API changes.
 const BoundaryVersion = 1
-
-// ---------------------------------------------------------------------------
-// Type aliases — re-export all public types
-// ---------------------------------------------------------------------------
-
-type Mode = types.Mode
-type Format = types.Format
-type ParseError = types.ParseError
-type Timing = types.Timing
-type ParseConfig = types.ParseConfig
-type ParseResult = types.ParseResult
-type FileResult = types.FileResult
-type ProjectConfig = types.ProjectConfig
-type ProjectResult = types.ProjectResult
-type EmitFn = types.EmitFn
-type WalkConfig = types.WalkConfig
-type WalkSummary = types.WalkSummary
-type BenchReport = types.BenchReport
-type BenchEvent = types.BenchEvent
-type DebugConfig = types.DebugConfig
-type DebugResult = types.DebugResult
-type DebugProfile = types.DebugProfile
-type DebugEvent = types.DebugEvent
-
-// ---------------------------------------------------------------------------
-// Mode constants
-// ---------------------------------------------------------------------------
-
-const (
-	ModeAuto = types.ModeAuto
-	ModeObjj = types.ModeObjj
-	ModeJS   = types.ModeJS
-	ModeBoth = types.ModeBoth
-)
-
-// ---------------------------------------------------------------------------
-// Format constants
-// ---------------------------------------------------------------------------
-
-const (
-	FormatDefault = types.FormatDefault
-	FormatSexp    = types.FormatSexp
-	FormatJSON    = types.FormatJSON
-	FormatAST     = types.FormatAST
-)
-
-// ---------------------------------------------------------------------------
-// Mode and format parsing
-// ---------------------------------------------------------------------------
-
-// ParseMode converts a flag string to a Mode.
-func ParseMode(s string) (Mode, error) { return types.ParseMode(s) }
-
-// ParseFormat converts a flag string to a Format.
-func ParseFormat(s string) (Format, error) { return types.ParseFormat(s) }
 
 // ---------------------------------------------------------------------------
 // Single-file parse
 // ---------------------------------------------------------------------------
 
-// Parse parses a single file as described by cfg and returns a ParseResult
-// suitable for CLI output. The tree is closed before returning.
-func Parse(cfg ParseConfig) (ParseResult, error) { return core.RunParse(cfg) }
+// Parse parses a single file as described by cfg.
+// The tree is closed before returning.
+func Parse(cfg ParseConfig) (ParseResult, error) {
+	r, err := core.RunParse(core.ParseConfig{
+		Path:        cfg.Path,
+		Src:         cfg.Src,
+		Mode:        int(cfg.Mode),
+		Format:      int(cfg.Format),
+		GrammarPath: cfg.GrammarPath,
+		Benchmark:   cfg.Benchmark,
+	})
+	if err != nil {
+		return ParseResult{}, err
+	}
+	return convertParseResult(r), nil
+}
 
 // ParseFile parses a single file and returns a live FileResult.
 // The caller must call Close() on the owning ProjectResult when done.
-func ParseFile(cfg ParseConfig) (*FileResult, error) { return core.RunParseFile(cfg) }
+func ParseFile(cfg ParseConfig) (*FileResult, error) {
+	r, err := core.RunParseFile(core.ParseConfig{
+		Path:        cfg.Path,
+		Src:         cfg.Src,
+		Mode:        int(cfg.Mode),
+		Format:      int(cfg.Format),
+		GrammarPath: cfg.GrammarPath,
+		Benchmark:   cfg.Benchmark,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return convertFileResult(r), nil
+}
 
 // ---------------------------------------------------------------------------
 // Project-scale parse
 // ---------------------------------------------------------------------------
 
-// ParseProject walks the source tree described by cfg, parses every
-// matching file, and returns a ProjectResult with all trees live.
-// The caller must call ProjectResult.Close() when done.
-func ParseProject(cfg ProjectConfig) (*ProjectResult, error) { return core.RunParseProject(cfg) }
+// ParseProject walks the source tree described by cfg and returns a
+// ProjectResult with all trees live. Call Close() when done.
+func ParseProject(cfg ProjectConfig) (*ProjectResult, error) {
+	r, err := core.RunParseProject(core.ProjectConfig{
+		Root:        cfg.Root,
+		Paths:       cfg.Paths,
+		Mode:        int(cfg.Mode),
+		GrammarPath: cfg.GrammarPath,
+		Workers:     cfg.Workers,
+	})
+	if err != nil {
+		return nil, err
+	}
+	pr := &ProjectResult{
+		Duration:   r.Duration,
+		FileCount:  r.FileCount,
+		ErrorCount: r.ErrorCount,
+		ByteCount:  r.ByteCount,
+	}
+	for _, f := range r.Files {
+		pr.Files = append(pr.Files, convertFileResult(f))
+	}
+	pr.SetCloseFn(func() { core.CloseProjectResult(r) })
+	return pr, nil
+}
 
 // ---------------------------------------------------------------------------
-// Walk — streaming project walk for CLI use
+// Walk
 // ---------------------------------------------------------------------------
 
 // Walk executes the parallel walk described by cfg.
-func Walk(cfg WalkConfig) (WalkSummary, error) { return core.RunWalk(cfg) }
+func Walk(cfg WalkConfig) (WalkSummary, error) {
+	var emitFn core.EmitFn
+	if cfg.EmitFn != nil {
+		fn := cfg.EmitFn
+		emitFn = func(path string, r core.ParseResult) {
+			fn(path, convertParseResult(r))
+		}
+	}
+	r, err := core.RunWalk(core.WalkConfig{
+		Root:        cfg.Root,
+		Paths:       cfg.Paths,
+		Mode:        int(cfg.Mode),
+		GrammarPath: cfg.GrammarPath,
+		Workers:     cfg.Workers,
+		FailFast:    cfg.FailFast,
+		Quiet:       cfg.Quiet,
+		Benchmark:   cfg.Benchmark,
+		Stdout:      cfg.Stdout,
+		Stderr:      cfg.Stderr,
+		EmitFn:      emitFn,
+	})
+	if err != nil {
+		return WalkSummary{}, err
+	}
+	return convertWalkSummary(r), nil
+}
 
 // ---------------------------------------------------------------------------
 // Debug
 // ---------------------------------------------------------------------------
 
 // Debug walks a file or directory, stopping at the first parse error.
-func Debug(cfg DebugConfig) (DebugResult, error) { return core.RunDebug(cfg) }
+func Debug(cfg DebugConfig) (DebugResult, error) {
+	r, err := core.RunDebug(core.DebugConfig{
+		Path:         cfg.Path,
+		Mode:         int(cfg.Mode),
+		GrammarPath:  cfg.GrammarPath,
+		Profile:      cfg.Profile,
+		ContextLines: cfg.ContextLines,
+		NoXcode:      cfg.NoXcode,
+	})
+	if err != nil {
+		return DebugResult{}, err
+	}
+	result := DebugResult{HasError: r.HasError}
+	if r.Profile != nil {
+		p := &DebugProfile{Total: r.Profile.Total}
+		for _, e := range r.Profile.Events {
+			p.Events = append(p.Events, DebugEvent{
+				Path:    e.Path,
+				Elapsed: e.Elapsed,
+				OK:      e.OK,
+			})
+		}
+		result.Profile = p
+	}
+	return result, nil
+}
+
+// ---------------------------------------------------------------------------
+// Conversions
+// ---------------------------------------------------------------------------
+
+func convertParseResult(r core.ParseResult) ParseResult {
+	result := ParseResult{
+		HasError:   r.HasError,
+		NodeCount:  r.NodeCount,
+		Sexp:       r.Sexp,
+		PrettySexp: r.PrettySexp,
+	}
+	if r.Timing != nil {
+		result.Timing = &Timing{Elapsed: r.Timing.Elapsed, Bytes: r.Timing.Bytes}
+	}
+	for _, e := range r.Errors {
+		result.Errors = append(result.Errors, ParseError{
+			Row:     e.Row,
+			Column:  e.Column,
+			Message: e.Message,
+		})
+	}
+	return result
+}
+
+func convertFileResult(r *core.FileResult) *FileResult {
+	if r == nil {
+		return nil
+	}
+	fr := &FileResult{
+		Path:      r.Path,
+		Source:    r.Source,
+		Tree:      r.Tree,
+		NodeCount: r.NodeCount,
+		Duration:  r.Duration,
+	}
+	for _, e := range r.Errors {
+		fr.Errors = append(fr.Errors, ParseError{
+			Row:     e.Row,
+			Column:  e.Column,
+			Message: e.Message,
+		})
+	}
+	return fr
+}
+
+func convertWalkSummary(r core.WalkSummary) WalkSummary {
+	s := WalkSummary{
+		TotalFiles: r.TotalFiles,
+		OKFiles:    r.OKFiles,
+		ErrorFiles: r.ErrorFiles,
+		TotalBytes: r.TotalBytes,
+		Elapsed:    r.Elapsed,
+	}
+	if r.Bench != nil {
+		b := &BenchReport{
+			WallTime:   r.Bench.WallTime,
+			ParseTotal: r.Bench.ParseTotal,
+			Files:      r.Bench.Files,
+			Bytes:      r.Bench.Bytes,
+		}
+		for _, e := range r.Bench.Events {
+			b.Events = append(b.Events, BenchEvent{
+				Path:    e.Path,
+				Elapsed: e.Elapsed,
+				Bytes:   e.Bytes,
+			})
+		}
+		s.Bench = b
+	}
+	return s
+}

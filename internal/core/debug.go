@@ -16,12 +16,11 @@ import (
 	"time"
 
 	"github.com/enquora-net/capp-parse/grammar"
-	"github.com/enquora-net/capp-parse/internal/types"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 const (
-	divider = "──────────────────────────────────────────────────────────────────────"
+	Divider = "──────────────────────────────────────────────────────────────────────"
 	header  = "══════════════════════════════════════════════════════════════════════"
 
 	ansiGreen = "\033[32m"
@@ -30,20 +29,19 @@ const (
 
 	IconOK  = ansiGreen + "✓" + ansiReset
 	IconErr = ansiRed + "✗" + ansiReset
-	Divider = divider
 )
 
 // RunDebug walks a file or directory, stopping at the first parse error.
-func RunDebug(cfg types.DebugConfig) (types.DebugResult, error) {
+func RunDebug(cfg DebugConfig) (DebugResult, error) {
 	lang, err := grammar.Language(cfg.GrammarPath)
 	if err != nil {
-		return types.DebugResult{}, err
+		return DebugResult{}, err
 	}
 
 	parser := sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(lang); err != nil {
-		return types.DebugResult{}, fmt.Errorf("setting language: %w", err)
+		return DebugResult{}, fmt.Errorf("setting language: %w", err)
 	}
 
 	contextLines := cfg.ContextLines
@@ -53,23 +51,23 @@ func RunDebug(cfg types.DebugConfig) (types.DebugResult, error) {
 
 	info, err := os.Stat(cfg.Path)
 	if err != nil {
-		return types.DebugResult{}, fmt.Errorf("accessing %s: %w", cfg.Path, err)
+		return DebugResult{}, fmt.Errorf("accessing %s: %w", cfg.Path, err)
 	}
 
-	var events []types.DebugEvent
+	var events []DebugEvent
 	var totalElapsed time.Duration
 	hasError := false
 
 	if info.IsDir() {
 		paths, err := collectPaths(cfg.Path, cfg.Mode)
 		if err != nil {
-			return types.DebugResult{}, err
+			return DebugResult{}, err
 		}
 		for _, path := range paths {
 			ok, elapsed := debugFile(path, parser, cfg.Path, contextLines, cfg.NoXcode)
 			totalElapsed += elapsed
 			if cfg.Profile {
-				events = append(events, types.DebugEvent{Path: path, Elapsed: elapsed, OK: ok})
+				events = append(events, DebugEvent{Path: path, Elapsed: elapsed, OK: ok})
 			}
 			if !ok {
 				hasError = true
@@ -80,19 +78,16 @@ func RunDebug(cfg types.DebugConfig) (types.DebugResult, error) {
 		ok, elapsed := debugFile(cfg.Path, parser, "", contextLines, cfg.NoXcode)
 		totalElapsed += elapsed
 		if cfg.Profile {
-			events = append(events, types.DebugEvent{Path: cfg.Path, Elapsed: elapsed, OK: ok})
+			events = append(events, DebugEvent{Path: cfg.Path, Elapsed: elapsed, OK: ok})
 		}
 		if !ok {
 			hasError = true
 		}
 	}
 
-	result := types.DebugResult{HasError: hasError}
+	result := DebugResult{HasError: hasError}
 	if cfg.Profile {
-		result.Profile = &types.DebugProfile{
-			Events: events,
-			Total:  totalElapsed,
-		}
+		result.Profile = &DebugProfile{Events: events, Total: totalElapsed}
 	}
 	return result, nil
 }
@@ -125,7 +120,6 @@ func debugFile(path string, parser *sitter.Parser, root string, contextLines int
 	}
 
 	sp := errorNode.StartPosition()
-
 	if !noXcode {
 		openInXcode(path, sp.Row)
 	}
@@ -137,9 +131,9 @@ func debugFile(path string, parser *sitter.Parser, root string, contextLines int
 	showSourceContext(errorNode, lines, contextLines)
 	showParentChain(chain)
 
-	fmt.Println("\n" + divider)
+	fmt.Println("\n" + Divider)
 	fmt.Println("FULL CONCRETE SYNTAX TREE")
-	fmt.Println(divider)
+	fmt.Println(Divider)
 	fmt.Println(FormatNode(root2, src, 0))
 
 	return false, elapsed
@@ -151,9 +145,9 @@ func showSourceContext(errorNode *sitter.Node, lines []string, contextLines int)
 	first := max(0, startLine-contextLines)
 	last := min(len(lines)-1, endLine+contextLines)
 
-	fmt.Println("\n" + divider)
+	fmt.Println("\n" + Divider)
 	fmt.Println("SOURCE CONTEXT")
-	fmt.Println(divider)
+	fmt.Println(Divider)
 
 	for i := first; i <= last; i++ {
 		lineText := strings.TrimRight(lines[i], "\r")
@@ -177,9 +171,9 @@ func showParentChain(chain []*sitter.Node) {
 	if len(chain) == 0 {
 		return
 	}
-	fmt.Println("\n" + divider)
+	fmt.Println("\n" + Divider)
 	fmt.Println("PARENT CONTEXT")
-	fmt.Println(divider)
+	fmt.Println(Divider)
 	for i, node := range chain {
 		sp := node.StartPosition()
 		fmt.Printf("%s↓ %s at %d:%d\n",
