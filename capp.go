@@ -100,6 +100,17 @@ func ParseProject(cfg ProjectConfig) (*ProjectResult, error) {
 }
 
 // ---------------------------------------------------------------------------
+// SourcePaths
+// ---------------------------------------------------------------------------
+
+// SourcePaths returns the paths of all parseable source files under root that
+// match mode, skipping directories named in skip.  This is the entry point
+// for build tools that need a filtered file list without parsing.
+func SourcePaths(root string, mode Mode, skip []string) ([]string, error) {
+	return core.SourcePaths(root, int(mode), skip)
+}
+
+// ---------------------------------------------------------------------------
 // Walk
 // ---------------------------------------------------------------------------
 

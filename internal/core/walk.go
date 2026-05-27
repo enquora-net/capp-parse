@@ -279,6 +279,37 @@ func RunWalk(cfg WalkConfig) (WalkSummary, error) {
 	return summary, nil
 }
 
+// SourcePaths returns the paths of all parseable source files under root that
+// match mode, skipping any directory whose base name appears in skip. This
+// provides filtered path collection without parsing, for use by build tools
+// that need a file list before invoking ParseProject.
+func SourcePaths(root string, mode int, skip []string) ([]string, error) {
+	skipSet := make(map[string]struct{}, len(skip))
+	for _, s := range skip {
+		skipSet[s] = struct{}{}
+	}
+	var paths []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if _, shouldSkip := skipSet[d.Name()]; shouldSkip {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if accept(mode, path) {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walking %s: %w", root, err)
+	}
+	return paths, nil
+}
+
 func resolvePaths(root string, explicit []string, mode int) ([]string, error) {
 	if len(explicit) > 0 {
 		return explicit, nil
