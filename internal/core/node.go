@@ -58,6 +58,35 @@ func NodeChild(n interface{}, i int) interface{} {
 	return node.Child(uint(i))
 }
 
+// NodeNamedChildCount returns the named child count of n, or 0 if n is nil.
+func NodeNamedChildCount(n interface{}) int {
+	if n == nil {
+		return 0
+	}
+	return int(n.(*sitter.Node).NamedChildCount())
+}
+
+// NodeNamedChild returns the i-th named child of n as interface{}, or nil
+// if out of range.
+func NodeNamedChild(n interface{}, i int) interface{} {
+	if n == nil {
+		return nil
+	}
+	node := n.(*sitter.Node)
+	if i < 0 || uint(i) >= node.NamedChildCount() {
+		return nil
+	}
+	return node.NamedChild(uint(i))
+}
+
+// NodeIsNamed reports whether n is a named node rather than an anonymous token.
+func NodeIsNamed(n interface{}) bool {
+	if n == nil {
+		return false
+	}
+	return n.(*sitter.Node).IsNamed()
+}
+
 // NodeChildByFieldName returns the child with the given field name, or nil.
 func NodeChildByFieldName(n interface{}, name string) (interface{}, bool) {
 	if n == nil {

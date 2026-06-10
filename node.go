@@ -18,21 +18,7 @@ package capp
 
 import "github.com/enquora-net/capp-parse/internal/core"
 
-// ---------------------------------------------------------------------------
-// Grammar node-kind constants
-// ---------------------------------------------------------------------------
-
-const (
-	NodeKindObjjImport     = "objj_import"
-	NodeKindSystemLibString = "system_lib_string"
-	NodeKindString          = "string"
-)
-
-// ---------------------------------------------------------------------------
-// Grammar field-name constants
-// ---------------------------------------------------------------------------
-
-const FieldImportPath = "path"
+// Grammar node-kind and field-name constants live in kinds.go.
 
 // ---------------------------------------------------------------------------
 // CSTNode
@@ -58,6 +44,22 @@ func (n CSTNode) ChildCount() int { return core.NodeChildCount(n.inner) }
 func (n CSTNode) Child(i int) CSTNode {
 	return CSTNode{inner: core.NodeChild(n.inner, i), source: n.source}
 }
+
+// NamedChildCount returns the number of named children of n, excluding
+// anonymous tokens (punctuation, keywords).  Extras such as comments are
+// named nodes and ARE counted; consumers must still skip them by kind.
+func (n CSTNode) NamedChildCount() int { return core.NodeNamedChildCount(n.inner) }
+
+// NamedChild returns the i-th named child of n.  Iterating named children
+// skips punctuation and keyword tokens but not comments, which are named
+// extras; consumers reconstructing structure skip those by kind.
+func (n CSTNode) NamedChild(i int) CSTNode {
+	return CSTNode{inner: core.NodeNamedChild(n.inner, i), source: n.source}
+}
+
+// IsNamed reports whether n is a named node (a grammar rule) rather than an
+// anonymous token.
+func (n CSTNode) IsNamed() bool { return core.NodeIsNamed(n.inner) }
 
 func (n CSTNode) ChildByFieldName(name string) (CSTNode, bool) {
 	child, ok := core.NodeChildByFieldName(n.inner, name)

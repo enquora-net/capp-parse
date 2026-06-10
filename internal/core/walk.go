@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -283,10 +284,14 @@ func RunWalk(cfg WalkConfig) (WalkSummary, error) {
 // match mode, skipping any directory whose base name appears in skip. This
 // provides filtered path collection without parsing, for use by build tools
 // that need a file list before invoking ParseProject.
+//
+// Skip matching is case-insensitive: project trees produced on
+// case-insensitive filesystems carry both "Build" and "build" in the wild,
+// and a missed skip silently parses generated output.
 func SourcePaths(root string, mode int, skip []string) ([]string, error) {
 	skipSet := make(map[string]struct{}, len(skip))
 	for _, s := range skip {
-		skipSet[s] = struct{}{}
+		skipSet[strings.ToLower(s)] = struct{}{}
 	}
 	var paths []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
@@ -294,7 +299,7 @@ func SourcePaths(root string, mode int, skip []string) ([]string, error) {
 			return walkErr
 		}
 		if d.IsDir() {
-			if _, shouldSkip := skipSet[d.Name()]; shouldSkip {
+			if _, shouldSkip := skipSet[strings.ToLower(d.Name())]; shouldSkip {
 				return filepath.SkipDir
 			}
 			return nil
