@@ -1,6 +1,6 @@
 /*
  * cmd/parse/parse.go
- * cappuccino
+ * capp-parse
  *
  * Created by David Richardson on Friday, April 10, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.

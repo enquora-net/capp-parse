@@ -30,8 +30,9 @@ import "github.com/enquora-net/capp-parse/internal/core"
 // BoundaryVersion identifies the interop contract version at the
 // Lisette/Go boundary. Increment when the public API changes.
 // 2: NamedChildCount/NamedChild/IsNamed on CSTNode; full node-kind and
-//    field-name constant surface (kinds.go); case-insensitive skip-dir
-//    matching in SourcePaths.
+//
+//	field-name constant surface (kinds.go); case-insensitive skip-dir
+//	matching in SourcePaths.
 const BoundaryVersion = 2
 
 // ---------------------------------------------------------------------------

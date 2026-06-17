@@ -1,0 +1,31 @@
+root = true
+
+# Primary standards for the stable era
+[*]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+end_of_line = lf
+
+# The Native Engine: Go & Lisette
+# Golang ecosystem compatibility overrides aesthetic preference for the toolchain core
+[*.{go,lis}]
+indent_style = tab
+indent_size = 4
+
+# The Runtime: Objective-J & Javascript
+# Preservation of Allman style and 4-space indent for historical/aesthetic legibility
+[*.{j,js}]
+indent_style = space
+indent_size = 4
+
+# Metadata & Configuration
+[*.toml]
+indent_style = space
+indent_size = 4
+
+# Build Infrastructure
+[{Makefile,go.mod,go.sum}]
+indent_style = tab

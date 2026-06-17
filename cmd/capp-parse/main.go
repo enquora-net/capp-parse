@@ -17,13 +17,17 @@ import (
 	"github.com/enquora-net/capp-parse/cmd"
 )
 
-// version is set at link time:
+// Injected at link time:
 //
-//	go build -ldflags "-X main.version=v1.2.3"
-var version = "dev"
+//	go build -ldflags "-X main.version=v1.2.3 -X main.commit=abc1234 -X main.date=2026-06-17T00:00:00Z"
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
 
 func main() {
-	if err := cmd.NewRootCmd(version).Execute(); err != nil {
+	if err := cmd.NewRootCmd(version, commit, date).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

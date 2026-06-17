@@ -1,6 +1,6 @@
 /*
  * cmd/verify/verify.go
- * cappuccino
+ * capp-parse
  *
  * Created by David Richardson on Friday, April 24, 2026.
  * Copyright (c) 2026 David Richardson. All rights reserved.

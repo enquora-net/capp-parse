@@ -69,10 +69,10 @@ func (n CSTNode) ChildByFieldName(name string) (CSTNode, bool) {
 	return CSTNode{inner: child, source: n.source}, true
 }
 
-func (n CSTNode) HasError() bool    { return core.NodeHasError(n.inner) }
-func (n CSTNode) IsError() bool     { return core.NodeIsError(n.inner) }
-func (n CSTNode) IsMissing() bool   { return core.NodeIsMissing(n.inner) }
-func (n CSTNode) StartRow() uint32  { return core.NodeStartRow(n.inner) }
+func (n CSTNode) HasError() bool      { return core.NodeHasError(n.inner) }
+func (n CSTNode) IsError() bool       { return core.NodeIsError(n.inner) }
+func (n CSTNode) IsMissing() bool     { return core.NodeIsMissing(n.inner) }
+func (n CSTNode) StartRow() uint32    { return core.NodeStartRow(n.inner) }
 func (n CSTNode) StartColumn() uint32 { return core.NodeStartColumn(n.inner) }
 
 // ---------------------------------------------------------------------------

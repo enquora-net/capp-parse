@@ -1,2 +1,26 @@
 /capp-parse
 /build
+/bin
+
+## macOS filesystem artifacts
+.DS_Store
+
+## JetBrains / GoLand
+.idea/
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/dictionary.xml
+.idea/shelf/
+.idea/vcs.xml
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+
+## Xcode user data
+**/xcuserdata/
+DerivedData/
+*.moved-aside
+*.xcuserstate
+**/xcshareddata/xcschemes/*.management
