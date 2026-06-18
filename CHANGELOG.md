@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## 0.1.0-beta1 — 2026-06-17
+## 2.0.0-beta1 — 2026-06-17
 
 First public release of the Go-native Cappuccino Objective-J parser.
 
