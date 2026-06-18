@@ -24,23 +24,35 @@ executable, and place it in your PATH.
 The Objective-J Tree-sitter dynamic library must be installed separately.
 Download the appropriate binary for your platform from the
 [tree-sitter-objj releases page](https://github.com/enquora-net/tree-sitter-objj/releases)
-and install it to `/usr/local/lib`. Use `capp-parse verify` to confirm the
-installation is locatable.
+and place it in `/usr/local/lib`.
+
+On macOS, Gatekeeper quarantines downloaded files. Strip the attribute from
+both before first use:
+
+```sh
+xattr -d com.apple.quarantine capp-parse
+xattr -d com.apple.quarantine /usr/local/lib/libtree-sitter-objj.dylib
+```
+
+Use `capp-parse verify` to confirm the grammar library is locatable.
+
+> **Pre-release.** This software is in developer preview. It should only be
+> used in environments where rollback or recovery is in place.
 
 ---
 
 ## Prerequisites
 
 The compiled grammar dynamic library must be installed and locatable. The
-following paths are searched in order:
+following paths are searched in order on macOS:
 
 ```
-/usr/local/lib/tree-sitter
-/opt/local/lib/tree-sitter    (MacPorts)
-~/Library/tree-sitter
-/Library/tree-sitter
+~/Library/Application Support/github.com/enquora-net/grammar/
+/Library/Application Support/github.com/enquora-net/grammar/
+/usr/local/lib
 ```
 
+For this release, `/usr/local/lib` is the supported manual install location.
 An explicit path can be supplied to any command via `--grammar`.
 
 ---
