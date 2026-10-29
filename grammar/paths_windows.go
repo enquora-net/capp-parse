@@ -11,28 +11,37 @@
 
 package grammar
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
-// searchPaths returns the ordered list of directories to search for the
-// grammar dynamic library on Windows.
+// locations returns the ordered list of directories to search for the
+// grammar dynamic library on Windows. This list is the canonical reference
+// for supported install locations.
 //
 // Search order:
 //
-//	%LOCALAPPDATA%\github.com/enquora-net/\grammar\   (per-user managed)
-//	%PROGRAMDATA%\github.com/enquora-net/\grammar\    (system managed)
+//	%LOCALAPPDATA%\Cappuccino\grammar   (current user)
+//	%ProgramFiles%\Cappuccino\grammar   (all users; writable by administrators only)
 //
-// There is no unmanaged fallback on Windows. Use --grammar to specify
-// an explicit path when the library is not in a managed location.
-func searchPaths() []string {
-	var paths []string
-
-	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-		paths = append(paths, localAppData+`\github.com/enquora-net/\grammar`)
+// %ProgramData% is deliberately not used: ordinary users can create folders
+// there, so any user could plant a library that would load for every user.
+// There is no unmanaged fallback on Windows. Use --grammar to specify an
+// explicit path when the library is not in a supported location.
+func locations() []Location {
+	var locs []Location
+	if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+		locs = append(locs, Location{
+			Dir:   filepath.Join(dir, "Cappuccino", "grammar"),
+			Scope: ScopeUser,
+		})
 	}
-
-	if programData := os.Getenv("PROGRAMDATA"); programData != "" {
-		paths = append(paths, programData+`\github.com/enquora-net/\grammar`)
+	if dir := os.Getenv("ProgramFiles"); dir != "" {
+		locs = append(locs, Location{
+			Dir:   filepath.Join(dir, "Cappuccino", "grammar"),
+			Scope: ScopeSystem,
+		})
 	}
-
-	return paths
+	return locs
 }

@@ -11,27 +11,31 @@
 
 package grammar
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
-// searchPaths returns the ordered list of directories to search for the
-// grammar dynamic library on macOS.
+// locations returns the ordered list of directories to search for the
+// grammar dynamic library on macOS. This list is the canonical reference
+// for supported install locations.
 //
 // Search order:
 //
-//	~/Library/Application Support/github.com/enquora-net/grammar/   (user managed)
-//	/Library/Application Support/github.com/enquora-net/grammar/    (system managed)
-//	/usr/local/lib                                           (unmanaged)
-func searchPaths() []string {
-	var paths []string
-
+//	~/Library/Application Support/dev.cappuccino/grammar   (current user)
+//	/Library/Application Support/dev.cappuccino/grammar    (all users)
+//	/usr/local/lib                                         (all users, unmanaged)
+func locations() []Location {
+	var locs []Location
 	if home, err := os.UserHomeDir(); err == nil {
-		paths = append(paths, home+"/Library/Application Support/github.com/enquora-net/grammar")
+		locs = append(locs, Location{
+			Dir:   filepath.Join(home, "Library", "Application Support", "dev.cappuccino", "grammar"),
+			Scope: ScopeUser,
+		})
 	}
-
-	paths = append(paths,
-		"/Library/Application Support/github.com/enquora-net/grammar",
-		"/usr/local/lib",
+	locs = append(locs,
+		Location{Dir: "/Library/Application Support/dev.cappuccino/grammar", Scope: ScopeSystem},
+		Location{Dir: "/usr/local/lib", Scope: ScopeUnmanaged},
 	)
-
-	return paths
+	return locs
 }

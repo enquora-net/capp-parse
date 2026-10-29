@@ -24,7 +24,7 @@ executable, and place it in your PATH.
 The Objective-J Tree-sitter dynamic library must be installed separately.
 Download the appropriate binary for your platform from the
 [tree-sitter-objj releases page](https://github.com/enquora-net/tree-sitter-objj/releases)
-and place it in `/usr/local/lib`.
+and install it in one of the locations listed under Prerequisites.
 
 On macOS, Gatekeeper quarantines downloaded files. Strip the attribute from
 both before first use:
@@ -43,16 +43,22 @@ Use `capp-parse verify` to confirm the grammar library is locatable.
 
 ## Prerequisites
 
-The compiled grammar dynamic library must be installed and locatable. The
-following paths are searched in order on macOS:
+The compiled grammar dynamic library must be installed and locatable. These
+locations are searched in order, and the first library found is used. They are
+defined in the `grammar` package, which is the canonical reference.
 
 ```
-~/Library/Application Support/github.com/enquora-net/grammar/
-/Library/Application Support/github.com/enquora-net/grammar/
-/usr/local/lib
+macOS    ~/Library/Application Support/dev.cappuccino/grammar
+         /Library/Application Support/dev.cappuccino/grammar
+         /usr/local/lib
+
+Linux    $XDG_DATA_HOME/cappuccino/grammar   (default ~/.local/share/cappuccino/grammar)
+         /usr/local/lib
+
+Windows  %LOCALAPPDATA%\Cappuccino\grammar
+         %ProgramFiles%\Cappuccino\grammar
 ```
 
-For this release, `/usr/local/lib` is the supported manual install location.
 An explicit path can be supplied to any command via `--grammar`.
 
 ---

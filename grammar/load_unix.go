@@ -15,22 +15,23 @@ package grammar
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/ebitengine/purego"
-	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-func load(path string) (*sitter.Language, error) {
-	lib, err := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+func openLibrary(path string) (uintptr, error) {
+	handle, err := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_GLOBAL)
 	if err != nil {
-		return nil, fmt.Errorf("dlopen %s: %w", path, err)
+		return 0, fmt.Errorf("dlopen %s: %w", path, err)
 	}
-	var languageFunc func() uintptr
-	purego.RegisterLibFunc(&languageFunc, lib, "tree_sitter_"+languageName)
-	ptr := languageFunc()
-	if ptr == 0 {
-		return nil, fmt.Errorf("tree_sitter_%s returned nil", languageName)
+	return handle, nil
+}
+
+// lookup returns the address of an exported symbol, and whether it exists.
+func lookup(handle uintptr, name string) (uintptr, bool) {
+	sym, err := purego.Dlsym(handle, name)
+	if err != nil || sym == 0 {
+		return 0, false
 	}
-	return sitter.NewLanguage(unsafe.Pointer(ptr)), nil //nolint:unsafeptr
+	return sym, true
 }

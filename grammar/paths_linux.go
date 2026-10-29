@@ -13,45 +13,34 @@ package grammar
 
 import (
 	"os"
-	"strings"
+	"path/filepath"
 )
 
-// searchPaths returns the ordered list of directories to search for the
-// grammar dynamic library on Linux.
+// locations returns the ordered list of directories to search for the
+// grammar dynamic library on Linux. This list is the canonical reference
+// for supported install locations.
 //
-// Search order follows the XDG Base Directory Specification:
+// Search order:
 //
-//	$XDG_DATA_HOME/github.com/enquora-net/grammar/          (default: ~/.local/share/...)
-//	$XDG_DATA_DIRS/github.com/enquora-net/grammar/          (default: /usr/local/share/... then /usr/share/...)
-//	/usr/local/lib                                   (unmanaged)
-func searchPaths() []string {
-	var paths []string
-
-	// XDG_DATA_HOME: per-user managed location
+//	$XDG_DATA_HOME/cappuccino/grammar   (current user; default ~/.local/share/...)
+//	/usr/local/lib                      (all users)
+//
+// XDG_DATA_DIRS is deliberately not searched: its defaults (/usr/local/share,
+// /usr/share) hold architecture-independent files, not compiled libraries.
+func locations() []Location {
+	var locs []Location
 	dataHome := os.Getenv("XDG_DATA_HOME")
 	if dataHome == "" {
 		if home, err := os.UserHomeDir(); err == nil {
-			dataHome = home + "/.local/share"
+			dataHome = filepath.Join(home, ".local", "share")
 		}
 	}
 	if dataHome != "" {
-		paths = append(paths, dataHome+"/github.com/enquora-net/grammar")
+		locs = append(locs, Location{
+			Dir:   filepath.Join(dataHome, "cappuccino", "grammar"),
+			Scope: ScopeUser,
+		})
 	}
-
-	// XDG_DATA_DIRS: system managed locations
-	dataDirs := os.Getenv("XDG_DATA_DIRS")
-	if dataDirs == "" {
-		dataDirs = "/usr/local/share:/usr/share"
-	}
-	for _, dir := range strings.Split(dataDirs, ":") {
-		dir = strings.TrimRight(dir, "/")
-		if dir != "" {
-			paths = append(paths, dir+"/github.com/enquora-net/grammar")
-		}
-	}
-
-	// Unmanaged fallback
-	paths = append(paths, "/usr/local/lib")
-
-	return paths
+	locs = append(locs, Location{Dir: "/usr/local/lib", Scope: ScopeSystem})
+	return locs
 }

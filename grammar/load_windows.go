@@ -15,23 +15,25 @@ package grammar
 
 import (
 	"fmt"
-	"unsafe"
 
-	"github.com/ebitengine/purego"
-	sitter "github.com/tree-sitter/go-tree-sitter"
 	"golang.org/x/sys/windows"
 )
 
-func load(path string) (*sitter.Language, error) {
-	lib, err := windows.LoadLibrary(path)
+// openLibrary loads the library by its full path. The system DLL search order
+// is never used, so a library planted elsewhere cannot be loaded instead.
+func openLibrary(path string) (uintptr, error) {
+	handle, err := windows.LoadLibraryEx(path, 0, windows.LOAD_WITH_ALTERED_SEARCH_PATH)
 	if err != nil {
-		return nil, fmt.Errorf("LoadLibrary %s: %w", path, err)
+		return 0, fmt.Errorf("LoadLibrary %s: %w", path, err)
 	}
-	var languageFunc func() uintptr
-	purego.RegisterLibFunc(&languageFunc, uintptr(lib), "tree_sitter_"+languageName)
-	ptr := languageFunc()
-	if ptr == 0 {
-		return nil, fmt.Errorf("tree_sitter_%s returned nil", languageName)
+	return uintptr(handle), nil
+}
+
+// lookup returns the address of an exported symbol, and whether it exists.
+func lookup(handle uintptr, name string) (uintptr, bool) {
+	sym, err := windows.GetProcAddress(windows.Handle(handle), name)
+	if err != nil || sym == 0 {
+		return 0, false
 	}
-	return sitter.NewLanguage(unsafe.Pointer(ptr)), nil //nolint:unsafeptr
+	return sym, true
 }
